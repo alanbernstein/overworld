@@ -1,0 +1,21 @@
+[
+    {
+        "name": "Austin AISD schools",
+        "source_url": "https://www.austinisd.org/modules/custom/schools/maps/schools.html",
+        "file_xml": "austin/aisd-schools-v12-202601.xml",
+        "tags": "austin,school,jurisdictions"
+    },
+    {
+        "name": "Austin city boundaries",
+        "source_url": "https://data.austintexas.gov/City-Government/Boundaries-City-of-Austin-Jurisdiction-and-Regulat/is88-7234/about_data",
+        "api_url_soda2": "https://data.austintexas.gov/resource/is88-7234.json",
+        "file_geojson": "austin/Boundaries__City_of_Austin_Jurisdiction_and_Regulatory_Boundaries_20260131.geojson",
+        "tags": "austin,jurisdictions"
+    },
+    {
+        "name": "Little Free Libraries (official)",
+        "source_url": "",
+        "file": "austin/LFL-from-littlefreelibrary.org-map.geojson",
+        "tags": "austin,free,books"
+    }
+]

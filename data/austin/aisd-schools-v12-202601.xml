@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<markers>
+<marker name="Allison" level="Elementary School"  address="515 Vargas Rd." telephone="(512) 414-2004" city="Austin" state="TX" zipcode="78741" coordinates="30.237312,-97.691091" url="allison" />
+<marker name="Andrews" level="Elementary School"  address="6801 Northeast Dr." telephone="(512) 414-1770" city="Austin" state="TX" zipcode="78723" coordinates="30.317876,-97.680358" url="andrews" />
+<marker name="Baldwin" level="Elementary School"  address="12200 Meridian Park Blvd." telephone="(512) 841-8900" city="Austin" state="TX" zipcode="78739" coordinates="30.185214,-97.922042" url="baldwin" />
+<marker name="Baranoff" level="Elementary School"  address="12009 Buckingham Gate" telephone="(512) 841-7100" city="Austin" state="TX" zipcode="78748" coordinates="30.153352,-97.852588" url="baranoff" />
+<marker name="Barrington" level="Elementary School"  address="400 Cooper Drive" telephone="(512) 414-2008" city="Austin" state="TX" zipcode="78753" coordinates="30.360832,-97.695849" url="barrington" />
+<marker name="Barton Hills" level="Elementary School"  address=" 2108 Barton Hills Dr." telephone=" (512) 414-2013" city="Austin" state="TX" zipcode="78704" coordinates="30.254531,-97.783522" url="bartonhills" />
+<marker name="Bear Creek" level="Elementary School" address="12801 Escarpment blvd." telephone="(512) 414-0310" city="Austin" state="TX" zipcode="78739" coordinates="30.172090,-97.910140" url="bearcreek" />
+<marker name="Becker" level="Elementary School"  address="906 West Milton St." telephone="(512) 414-2019" city="Austin" state="TX" zipcode="78704" coordinates="30.250512,-97.759824" url="becker" />
+<marker name="Blackshear" level="Elementary School"  address="1712 East 11th St." telephone="(512) 414-2021" city="Austin" state="TX" zipcode="78702" coordinates="30.267338,-97.722156" url="blackshear" />
+<marker name="Blanton" level="Elementary School"  address="5408 Westminster Dr." telephone="(512) 414-2026" city="Austin" state="TX" zipcode="78723" coordinates="30.306525,-97.690064" url="blanton" />
+<marker name="Blazier" level="Elementary School" line2="Primary Site (Grades K-3)" address="8601 Vertex Blvd." telephone="(512) 841-8800" city="Austin" state="TX" zipcode="78744" coordinates="30.1562265,-97.7529365" url="blazier" />
+<marker name="Blazier" level="Elementary School" line2="(Intermediate Site (Grades 4-6)"  address="8801 Vertex Blvd." telephone="(512) 841-8800" city="Austin" state="TX" zipcode="78744" coordinates="30.152154,-97.754932" url="blazier" />
+<marker name="Boone" level="Elementary School"  address="8101 Croftwood Dr." telephone="(512) 414-2537" city="Austin" state="TX" zipcode="78749" coordinates="30.203719,-97.840344" url="boone" />
+<marker name="Brentwood" level="Elementary School"  address="6700 Arroyo Seco" telephone="(512) 414-2039" city="Austin" state="TX" zipcode="78757" coordinates="30.339952,-97.731024" url="brentwood" />
+<marker name="T.A. Brown" level="Elementary School"  address="7801 Guadalupe St." telephone="(512) 414-2047" city="Austin" state="TX" zipcode="78752" coordinates="30.344777,-97.710005" url="brown" />
+<marker name="Bryker Woods" level="Elementary School"  address="3309 Kerbey Lane" telephone="(512) 414-2054" city="Austin" state="TX" zipcode="78703" coordinates="30.30518,-97.751066" url="brykerwoods" />
+<marker name="Campbell" level="Elementary School"  address="2613 Rogers Ave." telephone="(512) 414-2056" city="Austin" state="TX" zipcode="78722" coordinates="30.282523,-97.713371" url="campbell" />
+<marker name="Casey" level="Elementary School"  address="9400 Texas Oaks Dr." telephone="(512) 841-6900" city="Austin" state="TX" zipcode="78748" coordinates="30.174974,-97.814539" url="casey" />
+<marker name="Casis" level="Elementary School"  address="2710 Exposition Blvd." telephone="(512) 414-2062" city="Austin" state="TX" zipcode="78703" coordinates="30.303328,-97.764498" url="casis" />
+<marker name="Clayton" level="Elementary School"  address="7525 La Crosse Ave." telephone="(512) 841-9200" city="Austin" state="TX" zipcode="78739" coordinates="30.195509,-97.9074396" url="clayton" />
+<marker name="Cook" level="Elementary School"  address="1511 Cripple Creek" telephone="(512) 414-2510" city="Austin" state="TX" zipcode="78758" coordinates="30.37758,-97.703935" url="cook" />
+<marker name="Cowan" level="Elementary School"  address="2817 Kentish Dr." telephone="(512) 841-2700" city="Austin" state="TX" zipcode="78748" coordinates="30.188549,-97.8313" url="cowan" />
+<marker name="Cunningham" level="Elementary School"  address="2200 Berkeley Ave." telephone="(512) 414-2067" city="Austin" state="TX" zipcode="78745" coordinates="30.210107,-97.806215" url="cunningham" />
+<marker name="Davis" level="Elementary School"  address="5214 Duval Rd." telephone="(512) 414-2580" city="Austin" state="TX" zipcode="78727" coordinates="30.4174384,-97.7418857" url="davis" />
+<marker name="Dawson" level="Elementary School"  address="3001 South 1st St." telephone="(512) 414-2070" city="Austin" state="TX" zipcode="78704" coordinates="30.235162,-97.763842" url="dawson" />
+<marker name="Doss" level="Elementary School"  address="7005 Northledge Dr." telephone="(512) 414-2365" city="Austin" state="TX" zipcode="78731" coordinates="30.356154,-97.763455" url="doss" />
+<marker name="Galindo" level="Elementary School"  address="3800 S. 2nd St." telephone="(512) 414-1756" city="Austin" state="TX" zipcode="78704" coordinates="30.228674,-97.771467" url="galindo" />
+<marker name="Govalle" level="Elementary School"  address="3601 Govalle Ave." telephone="(512) 414-2078" city="Austin" state="TX" zipcode="78702" coordinates="30.264419,-97.698434" url="govalle" />
+<marker name="Graham" level="Elementary School"  address="11211 Tom Adams Dr." telephone="(512) 414-2395" city="Austin" state="TX" zipcode="78753" coordinates="30.372773,-97.668907" url="graham" />
+<marker name="Guerrero Thompson" level="Elementary School"  address="102 E. Rundberg Lane" telephone="(512) 414-8400" city="Austin" state="TX" zipcode="78753" coordinates="30.363901,-97.691666" url="guerrerothompson" />
+<marker name="Gullett" level="Elementary School"  address="6310 Treadwell Blvd." telephone="(512) 414-2082" city="Austin" state="TX" zipcode="78757" coordinates="30.343558,-97.748693" url="gullett" />
+<marker name="Harris" level="Elementary School"  address="1711 Wheless Ln." telephone="(512) 414-2085" city="Austin" state="TX" zipcode="78723" coordinates="30.315178,-97.690903" url="harris" />
+<marker name="Hart" level="Elementary School"  address="8301 Furness" telephone="(512) 841-2100" city="Austin" state="TX" zipcode="78753" coordinates="30.342859,-97.689312" url="hart" />
+<marker name="Highland Park" level="Elementary School"  address="4900 Fairview" telephone="(512) 414-2090" city="Austin" state="TX" zipcode="78731" coordinates="30.330698,-97.759953" url="highlandpark" />
+<marker name="Hill" level="Elementary School"  address="8601 Tallwood Dr." telephone="(512) 414-2369" city="Austin" state="TX" zipcode="78759" coordinates="30.377022,-97.748604" url="hill" />
+<marker name="Houston" level="Elementary School"  address="5409 Ponciana Dr." telephone="(512) 414-2517" city="Austin" state="TX" zipcode="78744" coordinates="30.197785,-97.755164" url="houston" />
+<marker name="Jordan" level="Elementary School"  address="6711 Johnny Morris Rd." telephone="(512) 414-2578" city="Austin" state="TX" zipcode="78724" coordinates="30.300728,-97.647609" url="jordan" />
+<marker name="Joslin" level="Elementary School"  address="4500 Manchaca Rd." telephone="(512) 414-2094" city="Austin" state="TX" zipcode="78745" coordinates="30.228262,-97.789583" url="joslin" />
+<marker name="Kiker" level="Elementary School"  address="5913 La Crosse Ave." telephone="(512) 414-2584" city="Austin" state="TX" zipcode="78739" coordinates="30.191934,-97.881528" url="kiker" />
+<marker name="Kocurek" level="Elementary School"  address="9800 Curlew Dr." telephone="(512) 414-2547" city="Austin" state="TX" zipcode="78748" coordinates="30.17797,-97.834096" url="kicurek" />
+<marker name="Langford" level="Elementary School"  address="2206 Blue Meadow Dr." telephone="(512) 414-1765" city="Austin" state="TX" zipcode="78744" coordinates="30.181716,-97.763522" url="langfor" />
+<marker name="Lee" level="Elementary School"  address="3308 Hampton Rd." telephone="(512) 414-2098" city="Austin" state="TX" zipcode="78705" coordinates="30.293441,-97.72737" url="lee" />
+<marker name="Linder" level="Elementary School"  address="2800 Metcalfe Rd." telephone="(512) 414-2398" city="Austin" state="TX" zipcode="78741" coordinates="30.224544,-97.737785" url="linder" />
+<marker name="Maplewood" level="Elementary School"  address="3808 Maplewood Ave." telephone="(512) 414-4402" city="Austin" state="TX" zipcode="78722" coordinates="30.292759,-97.714335" url="maplewood" />
+<marker name="Mathews" level="Elementary School"  address="906 West Lynn St." telephone="(512) 414-4406" city="Austin" state="TX" zipcode="78703" coordinates="30.278234,-97.760865" url="mathews" />
+<marker name="McBee" level="Elementary School"  address="1001 W. Braker Lane" telephone="(512) 841-2500" city="Austin" state="TX" zipcode="78758" coordinates="30.38343,-97.691059" url="mcbee" />
+<marker name="Menchaca" level="Elementary School"  address="1218 West FM 1626" telephone="(512) 414-2333" city="Austin" state="TX" zipcode="78652" coordinates="30.141247,-97.836791" url="menchaca" />
+<marker name="Mills" level="Elementary School"  address="6201 Davis Lane" telephone="(512) 841-2400" city="Austin" state="TX" zipcode="78749" coordinates="30.211525,-97.876838" url="mills" />
+<marker name="Oak Hill" level="Elementary School"  address="6101 Patton Ranch Rd." telephone="(512) 414-2336" city="Austin" state="TX" zipcode="78735" coordinates="30.237489,-97.858751" url="oakhill" />
+<marker name="Oak Springs" level="Elementary School"  address="3601 Webberville Rd." telephone="(512) 414-4413" city="Austin" state="TX" zipcode="78702" coordinates="30.272009,-97.704554" url="oaksprings" />
+<marker name="Odom" level="Elementary School"  address="1010 Turtle Creek Blvd." telephone="(512) 414-2388" city="Austin" state="TX" zipcode="78745" coordinates="30.205587,-97.789485" url="odom" />
+<marker name="Ortega" level="Elementary School"  address="1135 Garland Ave." telephone="(512) 414-4417" city="Austin" state="TX" zipcode="78721" coordinates="30.269893,-97.684597" url="ortega" />
+<marker name="Overton" level="Elementary School"  address="7201 Colony Loop Dr." telephone="(512) 841-9300" city="Austin" state="TX" zipcode="78724" coordinates="30.300629,-97.631412" url="overton" />
+<marker name="Padrón" level="Elementary School" address="2011 West Rundberg Lane" telephone="(512) 841-9600" city="Austin" state="TX" zipcode="78758" coordinates="30.373999,-97.720478" url="padron" />
+<marker name="Palm" level="Elementary School"  address="7601 Dixie Dr." telephone="(512) 414-2545" city="Austin" state="TX" zipcode="78744" coordinates="30.16482,-97.744271" url="palm" />
+<marker name="Patton" level="Elementary School"  address="6001 Westcreek Dr." telephone="(512) 414-1780" city="Austin" state="TX" zipcode="78749" coordinates="30.231988,-97.845521" url="patton" />
+<marker name="Pecan Springs" level="Elementary School"  address="3100 Rogge Ln." telephone="(512) 414-4445" city="Austin" state="TX" zipcode="78723" coordinates="30.303047,-97.676406" url="pecansprings" />
+<marker name="Perez" level="Elementary School"  address="7500 S. Pleasant Valley Rd." telephone="(512) 841-9100" city="Austin" state="TX" zipcode="78744" coordinates="30.1704531,-97.7535299" url="perez" />
+<marker name="Pickle" level="Elementary School"  address="1101 Wheatley Ave." telephone="(512) 841-8400" city="Austin" state="TX" zipcode="78752" coordinates="30.333542,-97.693265" url="pickle" />
+<marker name="Pillow" level="Elementary School"  address="3025 Crosscreek Dr." telephone="(512) 414-2350" city="Austin" state="TX" zipcode="78757" coordinates="30.369462,-97.733254" url="pillow" />
+<marker name="Pleasant Hill" level="Elementary School"  address="6405 Circle S Rd." telephone="(512) 414-4453" city="Austin" state="TX" zipcode="78745" coordinates="30.1958,-97.776593" url="pleasanthill" />
+<marker name="Reilly" level="Elementary School"  address="405 Denson Dr." telephone="(512) 414-4464" city="Austin" state="TX" zipcode="78752" coordinates="30.328122,-97.719902" url="reilly" />
+<marker name="Ridgetop" level="Elementary School"  address="5005 Caswell Ave." telephone="(512) 414-4469" city="Austin" state="TX" zipcode="78751" coordinates="30.311408,-97.716109" url="ridgetop" />
+<marker name="Rodriguez" level="Elementary School"  address="4400 Franklin Park Dr." telephone="(512) 841-7200" city="Austin" state="TX" zipcode="78744" coordinates="30.199403,-97.744962" url="rodriguez" />
+<marker name="Sanchez" level="Elementary School"  address="73 San Marcos St." telephone="(512) 414-4423" city="Austin" state="TX" zipcode="78702" coordinates="30.258062,-97.735566" url="sanchez" />
+<marker name="Norman-Sims" level="Elementary School"  address="4001 Tannehill Ln." telephone="(512) 414-2347" city="Austin" state="TX" zipcode="78721" coordinates="30.278330,-97.676166" url="norman-sims" />
+<marker name="St. Elmo" level="Elementary School"  address="600 W. St. Elmo Rd." telephone="(512) 414-4477" city="Austin" state="TX" zipcode="78745" coordinates="30.221497,-97.773197" url="stelmo" />
+<marker name="Summitt" level="Elementary School"  address="12207 Brigadoon Ln." telephone="(512) 414-4484" city="Austin" state="TX" zipcode="78727" coordinates="30.418394,-97.719066" url="summitt" />
+<marker name="Sunset Valley" level="Elementary School"  address="3000 Jones Rd." telephone="(512) 414-2392" city="Austin" state="TX" zipcode="78745" coordinates="30.227277,-97.80704" url="sunsetvalley" />
+<marker name="Travis Heights" level="Elementary School"  address="2010 Alameda Dr." telephone="(512) 414-4495" city="Austin" state="TX" zipcode="78704" coordinates="30.240999,-97.74605" url="travisheights" />
+<marker name="Uphaus" level="Early Childhood Center" address="5200 Freidrich Lane" telephone="(512) 414-5520" city="Austin" state="TX" zipcode="78744" coordinates="30.201733,-97.755998" url="uphaus" />
+<marker name="Walnut Creek" level="Elementary School"  address="401 W. Braker Ln." telephone="(512) 414-4499" city="Austin" state="TX" zipcode="78753" coordinates="30.379732,-97.68408" url="walnutcreek" />
+<marker name="Widen" level="Elementary School"  address="5605 Nuckols Crossing" telephone="(512) 414-2556" city="Austin" state="TX" zipcode="78744" coordinates="30.188742,-97.740387" url="widen" />
+<marker name="Williams" level="Elementary School"  address="500 Mairo" telephone="(512) 414-2525" city="Austin" state="TX" zipcode="78748" coordinates="30.181007,-97.791323" url="williams" />
+<marker name="Winn" level="Elementary School"  address="3500 Susquehanna Ln." telephone="(512) 414-2390" city="Austin" state="TX" zipcode="78723" coordinates="30.313953,-97.665347" url="winn" />
+<marker name="Wooldridge" level="Elementary School"  address="1412 Norseman Terrace" telephone="(512) 414-2353" city="Austin" state="TX" zipcode="78758" coordinates="30.364849,-97.710005" url="wooldridge" />
+<marker name="Wooten" level="Elementary School"  address="1406 Dale" telephone="(512) 414-2315" city="Austin" state="TX" zipcode="78757" coordinates="30.353681,-97.719595" url="wooten" />
+<marker name="Zavala" level="Elementary School"  address="310 Robert Martinez, Jr." telephone="(512) 414-2318" city="Austin" state="TX" zipcode="78702" coordinates="30.258027,-97.719923" url="zavala" />
+<marker name="Zilker" level="Elementary School"  address="1900 Bluebonnet Ln." telephone="(512) 414-2327" city="Austin" state="TX" zipcode="78704" coordinates="30.252748,-97.774358" url="zilker" />
+<marker name="Ann Richards" level="School for Young Women Leaders"  address="2309 Panther Trail" telephone="(512) 414-3236" city="Austin" state="TX" zipcode="78704" coordinates="30.236995,-97.788127" url="annrichards" />
+<marker name="Bailey" level="Middle School" address=" 4020 Lost Oasis Hollow" telephone="(512) 414-4990" city="Austin" state="TX" zipcode="78739" coordinates="30.164329,-97.872255" url="bailey" />
+<marker name="Bedichek" level="Middle School" address="6800 Bill Hughes Rd." telephone="(512) 414-3265" city="Austin" state="TX" zipcode="78745" coordinates="30.195154,-97.785859" url="bedichek" />
+<marker name="Burnet"  level="Middle School"  address="8401 Hathaway" telephone="(512) 414-3225" city="Austin" state="TX" zipcode="78757" coordinates="30.363819,-97.725982" url="burnet" />
+<marker name="Covington"  level="Middle School"  address="3700 Convict Hill Rd." telephone="(512) 414-3276" city="Austin" state="TX" zipcode="78749" coordinates="30.211961,-97.834532" url="covington" />
+<marker name="Dobie"  level="Middle School"  address="1200 E. Rundberg Ln." telephone="(512) 414-3270" city="Austin" state="TX" zipcode="78753" coordinates="30.354251,-97.681338" url="dobie" />
+<marker name="Lively"  level="Middle School"  address="201 East Mary" telephone="(512) 414-3207" city="Austin" state="TX" zipcode="78704" coordinates="30.244308,-97.75015" url="lively" />
+<marker name="Garcia YMLA" level="Middle School"  address="7414 Johnny Morris Rd." telephone="(512) 841-9400" city="Austin" state="TX" zipcode="78724" coordinates="30.3080501,-97.6431332" url="garciaymla" />
+<marker name="General Marshall" level="Middle School" address="4401 Tilley St." telephone="(512) 414-4163" city="Austin" state="TX" zipcode="78723" coordinates="30.296310887610947,-97.69447810232646" url="marshall" />
+<marker name="Gorzycki"  level="Middle School"  address="7412 West Slaughter Lane" telephone="(512) 841-8600" city="Austin" state="TX" zipcode="78749" coordinates="30.215677,-97.8931418" url="gorzycki" />
+<marker name="Kealing"  level="Middle School"  address="1607 Pennsylvania Ave." telephone="(512) 414-3214" city="Austin" state="TX" zipcode="78702" coordinates="30.271041,-97.721917" url="kealing" />
+<marker name="Lamar"  level="Middle School"  address="6201 Wynona" telephone="(512) 414-3217" city="Austin" state="TX" zipcode="78757" coordinates="30.337781,-97.740495" url="lamar" />
+<marker name="Martin"  level="Middle School"  address="1601 Haskell" telephone="(512) 414-3243" city="Austin" state="TX" zipcode="78702" coordinates="30.252849,-97.730119" url="martin" />
+<marker name="Mendez"  level="Middle School"  address="5106 Village Square" telephone="(512) 414-3284" city="Austin" state="TX" zipcode="78744" coordinates="30.188476,-97.743462" url="mendez" />
+<marker name="Murchison"  level="Middle School"  address="3700 North Hills Dr." telephone="(512) 414-3254" city="Austin" state="TX" zipcode="78731" coordinates="30.354102,-97.758357" url="murchison" />
+<marker name="O. Henry"  level="Middle School"  address="2610 West 10th St." telephone="(512) 414-3229" city="Austin" state="TX" zipcode="78703" coordinates="30.285394,-97.774716" url="ohenry" />
+<marker name="Paredes"  level="Middle School"  address="10100 S. Mary Moore Searight Dr." telephone="(512) 841-6800" city="Austin" state="TX" zipcode="78748" coordinates="30.1739345,-97.8073999" url="paredes" />
+<marker name="Sadler Means YWLA" level="Middle School"    address="6401 N. Hampton Dr." telephone="(512) 414-3234" city="Austin" state="TX" zipcode="78723" coordinates="30.313480, -97.680508" url="sadlermeansywla" />
+<marker name="Small"  level="Middle School"  address="4801 Monterey Oaks Blvd." telephone="(512) 841-6700" city="Austin" state="TX" zipcode="78749" coordinates="30.233166,-97.8409" url="small" />
+<marker name="Webb"  level="Middle School"  address="601 E. St. Johns" telephone="(512) 414-3258" city="Austin" state="TX" zipcode="78752" coordinates="30.33331,-97.706904" url="webb" />
+<marker name="Akins" level="High School"  address="10701 South 1st St." telephone="(512) 841-9900" city="Austin" state="TX" zipcode="78748" coordinates="30.150414,-97.801454" url="akins" />
+<marker name="Anderson" level="High School"  address="8403 Mesa Dr." telephone="(512) 414-2538" city="Austin" state="TX" zipcode="78759" coordinates="30.376279,-97.754052" url="anderson" />
+<marker name="Austin" level="High School"  address="1715 W. Cesar Chavez" telephone="(512) 414-2505" city="Austin" state="TX" zipcode="78703" coordinates="30.273576,-97.766802" url="austin" />
+<marker name="Bowie" level="High School"  address="4103 Slaughter Ln." telephone="(512) 414-5247" city="Austin" state="TX" zipcode="78749" coordinates="30.1884893,-97.8565416" url="bowie" />
+<marker name="Crockett" level="High School"  address="5601 Manchaca Rd." telephone="(512) 414-2532" city="Austin" state="TX" zipcode="78745" coordinates="30.215103,-97.797669" url="crockett" />
+<marker name="Eastside Memorial" level="High School"  address="900 Thompson St." telephone="(512) 414-5810" city="Austin" state="TX" zipcode="78702" coordinates="30.268877,-97.711551" url="eastsidememorial" />
+<marker name="Garza Independence" level="High School"  address="1600 Chicon Street" telephone="(512) 414-8600" city="Austin" state="TX" zipcode="78702" coordinates="30.277498,-97.721211" url="garza" />
+<marker name="LBJ Early College" level="High School"  address="7309 Lazy Creek Dr." telephone="(512) 414-2543" telephone2="(512) 414-5272" city="Austin" state="TX" zipcode="78724" coordinates="30.314121,-97.657016" url="lbj" url2="lasa" />
+<marker name="LASA" level="High School" address="1012 Arthur Stiles Rd." telephone="(512) 414-5272" city="Austin" state="TX" zipcode="78721" coordinates="30.257210,-97.684179" url="lasa" />
+<marker name="Navarro Early College" level="High School"  address="1201 Payton Gin Rd." telephone="(512) 414-2514" city="Austin" state="TX" zipcode="78758" coordinates="30.361342,-97.708505" url="navarro" />
+<marker name="McCallum" level="High School"  address="5600 Sunshine Dr." telephone="(512) 414-2519" city="Austin" state="TX" zipcode="78756" coordinates="30.326245,-97.729829" url="mccallum" />
+<marker name="Northeast Early College" level="High School"  address="7104 Berkman Dr." telephone="(512) 414-2523" city="Austin" state="TX" zipcode="78752" coordinates="30.324019,-97.690019" url="northeast" />
+<marker name="Travis" level="High School"  address="1211 E. Oltorf St." telephone="(512) 414-2527" city="Austin" state="TX" zipcode="78704" coordinates="30.234663,-97.74396" url="travis" />
+<marker name="Alternative Learning Center" level="other" address="4900 Gonzales St." telephone="(512) 414-2554" city="Austin" state="TX" zipcode="78702" coordinates="30.256382, -97.698179" />
+<marker name="Clifton Career Development School" level="other"  address="1519 Coronado Hills Dr." telephone="(512) 414-3614" city="Austin" state="TX" zipcode="78752" coordinates="30.326595,-97.68728" url="clifton" />
+<marker name="Rosedale School" level="other"  address="7505 Silvercrest Dr." telephone="(512) 414-3617" city="Austin" state="TX" zipcode="78757" coordinates="30.352958,-97.739198" url="rosedale" />
+<marker name="Burger Activity Center" level="facility" address="3200 Jones Rd." telephone="(512) 414-1050" city="Austin" state="TX" zipcode="78745" coordinates="30.228409,-97.809346" url="" />
+<marker name="Austin ISD New HQ" level="facility" address="4000 S. IH-35" telephone="(512) 414-1700" city="Austin" state="TX" zipcode="78704" coordinates="30.218735,-97.753224" url="https://www.austinisd.org" />
+<marker name="Central Warehouse" level="facility" address="3701 Woodbury Drive" telephone="" city="Austin" state="TX" zipcode="78704" coordinates="30.224824,-97.759225" url="" />
+<marker name="Delco Activity Center" level="facility" address="4601 Pecan Brook Dr." telephone="(512) 841-8323" city="Austin" state="TX" zipcode="78724" coordinates="30.317896,-97.660512" url=""  />
+<marker name="House Park" level="facility" address="1301 Shoal Creek Blvd" telephone="(512) 414-0019" city="Austin" state="TX" zipcode="78701" coordinates="30.278259,-97.750189" url="" />
+<marker name="Nelson Bus Terminal" level="facility" address="7105 Berkman Dr." telephone="(512) 414-6520" city="Austin" state="TX" zipcode="78752" coordinates="30.328033,-97.687684" />
+<marker name="Nelson Field" level="facility" address="7105 Berkman Dr." telephone="(512) 414-1048" city="Austin" state="TX" zipcode="78705" coordinates="30.328033,-97.687684" url="" />
+<marker name="Noack Sports Complex" level="facility" address="5300 Crainway Dr." telephone="(512) 841-8323" city="Austin" state="TX" zipcode="78724" coordinates="30.317466,-97.656097" url=""  />
+<marker name="Performing Arts Center" level="facility" address="1500 Barbara Jordan Blvd." telephone="(512) 414-3976" city="Austin" state="TX" zipcode="78723"  url="http://www.fineartsaustin.org/pac" coordinates="30.304375, -97.703130" />
+<marker name="Saegert Bus Terminal" level="facility" address="3300 Jones Rd." telephone="(512) 414-6500" city="Austin" state="TX" zipcode="78745" coordinates="30.228464,-97.810284" url="" />
+<marker name="Service Center" level="facility" address="5101 E. 51st St." telephone="(512) 414-3299" city="Austin" state="TX" zipcode="78723" coordinates="30.293711,-97.671926" url="http://www.austinschools.org/campus/service/" />
+<marker name="Southeast Bus Terminal" level="facility" address="7200 Bluff Springs Rd." telephone="(512) 414-8510" city="Austin" state="TX" zipcode="78744" coordinates="30.181790,-97.769550" url=""  />
+</markers>

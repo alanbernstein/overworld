@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Overworld</title>
+  <link rel="icon" href="/favicon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- KML support -->
+  <script src="https://unpkg.com/leaflet-kml/L.KML.js"></script>
+
+  <!-- GPX support -->
+  <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
+
+  <!-- KMZ support (zipped KML) -->
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <!-- GeoTIFF support -->
+  <script src="https://unpkg.com/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+  <script src="https://unpkg.com/georaster/dist/georaster.browser.bundle.min.js"></script>
+  <script src="https://unpkg.com/georaster-layer-for-leaflet/dist/georaster-layer-for-leaflet.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; font-family: system-ui, sans-serif; }
+
+    #map {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+    }
+
+    #panel {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 280px;
+      max-height: calc(100vh - 20px);
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #panel.collapsed {
+      width: auto;
+    }
+
+    #panel.collapsed #panel-content {
+      display: none;
+    }
+
+    #panel-header {
+      padding: 12px 16px;
+      background: #2563eb;
+      color: white;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    #panel-header:hover {
+      background: #1d4ed8;
+    }
+
+    #toggle-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    #panel-content {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .top-section {
+      border-bottom: 2px solid #d1d5db;
+    }
+
+    .top-section:last-child {
+      border-bottom: none;
+    }
+
+    .top-header {
+      padding: 10px 16px;
+      background: #eff6ff;
+      font-weight: 700;
+      font-size: 13px;
+      color: #1d4ed8;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .top-header:hover {
+      background: #dbeafe;
+    }
+
+    .top-section.collapsed .top-content {
+      display: none;
+    }
+
+    .category {
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .category:last-child {
+      border-bottom: none;
+    }
+
+    .category-header {
+      padding: 10px 16px;
+      background: #f9fafb;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #6b7280;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .category-header:hover {
+      background: #f3f4f6;
+    }
+
+    .category-items {
+      padding: 4px 0;
+    }
+
+    .category.collapsed .category-items {
+      display: none;
+    }
+
+    .layer-item {
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .layer-item:hover {
+      background: #f9fafb;
+    }
+
+    .layer-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .layer-item label {
+      flex: 1;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .layer-item .format {
+      font-size: 10px;
+      color: #9ca3af;
+      text-transform: uppercase;
+    }
+
+    .loading {
+      opacity: 0.5;
+    }
+
+    #status {
+      padding: 8px 16px;
+      font-size: 11px;
+      color: #6b7280;
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+      min-height: 32px;
+    }
+
+    #status.hover-info {
+      color: #1f2937;
+      font-weight: 500;
+    }
+
+    .opacity-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 16px 8px 42px;
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .opacity-control input[type="range"] {
+      flex: 1;
+      height: 4px;
+      cursor: pointer;
+    }
+
+    .opacity-control span {
+      min-width: 32px;
+      text-align: right;
+    }
+
+    .feature-label {
+      background: white;
+      border: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .locate-btn {
+      width: 34px;
+      height: 34px;
+      background: white;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      line-height: 1;
+      color: #333;
+    }
+
+    .locate-btn:hover {
+      background: #f4f4f4;
+    }
+
+    .locate-btn.active {
+      color: #2563eb;
+    }
+
+    .leaflet-popup-content { margin: 10px 14px; }
+
+    .popup-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: #1f2937;
+      margin-bottom: 6px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .prop-table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 12px;
+    }
+
+    .prop-table td {
+      padding: 2px 0;
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    .prop-key {
+      color: #6b7280;
+      padding-right: 10px;
+      white-space: nowrap;
+      font-size: 11px;
+    }
+
+    .prop-val {
+      color: #1f2937;
+      word-break: break-word;
+      max-width: 240px;
+    }
+
+    .prop-val a { color: #2563eb; text-decoration: none; }
+    .prop-val a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="panel">
+  <div id="panel-header">
+    <span>Layers</span>
+    <button id="toggle-btn">−</button>
+  </div>
+  <div id="panel-content"></div>
+  <div id="status">Ready</div>
+</div>
+
+<script>
+// Layer configuration loaded from layers.json
+let LAYERS = {};  // Will be populated on load
+
+// Top-level display names keyed by data/ subdirectory name
+const TOP_LEVEL_NAMES = {
+  'austin':  'Austin',
+  'seattle': 'Seattle',
+  'texas':   'Texas',
+  'usa':     'United States',
+};
+const TOP_LEVEL_ORDER = ['austin', 'seattle', 'texas', 'usa'];
+
+// Subcategory display names keyed by tag
+const SUB_CATEGORY_NAMES = {
+  'bike':          'Bike',
+  'trail':         'Trails',
+  'transit':       'Transit',
+  'school':        'Schools',
+  'parks':         'Parks',
+  'water':         'Water',
+  'jurisdictions': 'Boundaries',
+  'raster':        'Raster Overlays',
+};
+const SUB_CATEGORY_ORDER = ['bike', 'trail', 'transit', 'school', 'parks', 'water', 'jurisdictions', 'raster'];
+
+// Parse layer configs into { topName: { subName: [layers] } }
+function parseLayersConfig(rawLayers) {
+  const organized = {};
+
+  for (const entry of rawLayers) {
+    let file = null, type = null;
+    if (entry.file_geojson)                        { file = entry.file_geojson;                    type = 'geojson'; }
+    else if (entry.file_kml)                       { file = entry.file_kml;                        type = 'kml'; }
+    else if (entry.file_csv)                       { file = entry.file_csv;                        type = 'csv'; }
+    else if (entry.file_gpx)                       { file = entry.file_gpx;                        type = 'gpx'; }
+    else if (entry.file_kmz)                       { file = entry.file_kmz;                        type = 'kmz'; }
+    else if (entry.file_tif || entry.file_geotiff) { file = entry.file_tif || entry.file_geotiff;  type = 'geotiff'; }
+    else if (entry.file) {
+      const ext = entry.file.split('.').pop().toLowerCase();
+      const BY_EXT = { geojson: 'geojson', kml: 'kml', kmz: 'kmz', gpx: 'gpx', csv: 'csv', tif: 'geotiff', tiff: 'geotiff' };
+      if (BY_EXT[ext]) { file = entry.file; type = BY_EXT[ext]; }
+    }
+
+    if (!file || !entry.name) continue;
+
+    const id = entry.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+
+    // Top level from the first path component of the file
+    const topDir = file.split('/')[0];
+    const topName = TOP_LEVEL_NAMES[topDir] || (topDir[0].toUpperCase() + topDir.slice(1));
+
+    // Subcategory from tags, excluding the tag that matches the top-level directory
+    const tags = (entry.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+    const subTags = tags.filter(t => t !== topDir);
+    const subTag = subTags.find(t => SUB_CATEGORY_NAMES[t]) || subTags[0] || null;
+    const subName = subTag
+      ? (SUB_CATEGORY_NAMES[subTag] || subTag[0].toUpperCase() + subTag.slice(1))
+      : 'General';
+
+    if (!organized[topName]) organized[topName] = {};
+    if (!organized[topName][subName]) organized[topName][subName] = [];
+
+    organized[topName][subName].push({
+      id,
+      name: entry.name,
+      file: 'data/' + file,
+      type,
+      source_url: entry.source_url || null,
+      style_by: entry.style_by || null,
+    });
+  }
+
+  // Sort top levels by TOP_LEVEL_ORDER
+  const topRank = name => {
+    const dir = Object.keys(TOP_LEVEL_NAMES).find(k => TOP_LEVEL_NAMES[k] === name);
+    const i = TOP_LEVEL_ORDER.indexOf(dir || '');
+    return i === -1 ? 999 : i;
+  };
+
+  // Sort subcategories by SUB_CATEGORY_ORDER, General last
+  const subRank = name => {
+    const tag = Object.keys(SUB_CATEGORY_NAMES).find(k => SUB_CATEGORY_NAMES[k] === name);
+    const i = SUB_CATEGORY_ORDER.indexOf(tag || '');
+    return i === -1 ? (name === 'General' ? 998 : 500) : i;
+  };
+
+  const sorted = {};
+  for (const topName of Object.keys(organized).sort((a, b) => topRank(a) - topRank(b))) {
+    sorted[topName] = {};
+    for (const subName of Object.keys(organized[topName]).sort((a, b) => subRank(a) - subRank(b))) {
+      sorted[topName][subName] = organized[topName][subName];
+    }
+  }
+
+  return sorted;
+}
+
+// Distinct color palette for single-layer mode (12 distinct hues)
+const DISTINCT_HUES = [0, 30, 60, 120, 180, 210, 270, 300, 330, 150, 240, 45];
+
+// Base hues for multi-layer mode
+const BASE_HUES = [0, 25, 160, 200, 270, 320, 45, 140, 220, 350];
+
+let hueIndex = 0;
+
+// Convert HSL to hex
+function hslToHex(h, s, l) {
+  s /= 100;
+  l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+// Get distinct color (for single-layer mode)
+function getDistinctColor(index) {
+  const hue = DISTINCT_HUES[index % DISTINCT_HUES.length];
+  return hslToHex(hue, 65, 45);
+}
+
+// Get shade of base hue (for multi-layer mode)
+function getShade(baseHue, index) {
+  const lightness = 35 + (index % 5) * 5;
+  const saturation = 55 + ((index * 7) % 20);
+  const hueVariation = ((index * 13) % 21) - 10;
+  const hue = (baseHue + hueVariation + 360) % 360;
+  return hslToHex(hue, saturation, lightness);
+}
+
+// Initialize map centered on Austin
+const map = L.map("map").setView([30.2672, -97.7431], 11);
+
+// Base layer options
+const baseLayers = {
+  "CartoDB Positron (muted)": L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
+  ),
+  "CartoDB Voyager": L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
+  ),
+  "OpenStreetMap": L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    { maxZoom: 19, attribution: '&copy; OpenStreetMap' }
+  ),
+  "CartoDB Dark": L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
+  )
+};
+
+baseLayers["CartoDB Positron (muted)"].addTo(map);
+L.control.layers(baseLayers, null, { position: 'topleft', collapsed: true }).addTo(map);
+
+// State
+const loadedLayers = {};      // layerId -> { layer, data, config, labels }
+const activeVectorLayers = new Set();  // track active vector layer IDs
+const layerHues = {};         // assigned base hue per layer
+const rasterOpacities = {};   // layerId -> opacity value
+
+// Ordered list of property keys likely to hold a human-readable name
+const NAME_KEYS = [
+  'name', 'NAME', 'Name',
+  'UNIT_NAME', 'ParkName', 'PARK_NAME',
+  'school_name', 'mapLabel',
+  'L_HOOD', 'S_HOOD',
+  'JURISDICT_NM', 'JURISDICT_LABEL_NM',
+  'planning_area_name', 'display_name', 'watershed_full_name',
+  'location_name', 'district_name', 'jurisdiction_label',
+  'TRAIL_SYST', 'ASSET_NAME', 'UNITDESC',
+  'FULLNAME', 'FullName', 'full_name',
+  'label', 'LABEL', 'title', 'TITLE',
+];
+
+// Get feature name from properties
+function getFeatureName(props) {
+  if (!props) return '';
+  for (const key of NAME_KEYS) {
+    const v = props[key];
+    if (v && String(v).trim()) return String(v).trim();
+  }
+  // Composite fallbacks
+  if (props.district_number) return `District ${props.district_number}`;
+  if (props.council_district) return `District ${props.council_district}`;
+  if (props.district) return `District ${props.district}`;
+  if (props.garb_rt) return `Route ${props.garb_rt}${props.garb_day ? ' · ' + props.garb_day : ''}`;
+  if (props.zipcode) return [props.zipcode, props.city, props.state].filter(Boolean).join(', ');
+  return '';
+}
+
+// Get short summary for the status bar (name + 1-2 secondary details)
+function getFeatureInfo(props) {
+  if (!props) return '';
+  const name = getFeatureName(props);
+  const parts = name ? [name] : [];
+  if (props.County1) parts.push(`County: ${props.County1}`);
+  if (props.UNIT_TYPE) parts.push(props.UNIT_TYPE);
+  if (props.receiving_waters) parts.push(`→ ${props.receiving_waters}`);
+  if (props.CATEGORY) parts.push(props.CATEGORY);
+  if (props.grades) parts.push(`Grades ${props.grades}`);
+  if (props.asset_size) parts.push(`${props.asset_size} ac`);
+  return parts.join(' · ');
+}
+
+// Keys to omit from the popup table
+const POPUP_SKIP = new Set([
+  ':id', ':version', ':created_at', ':updated_at',
+  'objectid', 'OBJECTID', 'OBJECTID_1',
+  'shape__area', 'shape__length', 'Shape__Area', 'Shape__Length',
+  'FID', 'GLOBALID', 'GlobalID', 'gis_id', 'GIS_NOTES',
+]);
+
+// Build HTML table of all meaningful properties for a popup
+function buildPopupHTML(props) {
+  if (!props) return '<em>No properties</em>';
+  const name = getFeatureName(props);
+  const rows = [];
+  for (const [k, v] of Object.entries(props)) {
+    if (POPUP_SKIP.has(k) || k.startsWith(':')) continue;
+    if (v === null || v === undefined || String(v).trim() === '') continue;
+    const label = k.replace(/_/g, ' ').toLowerCase();
+    let val = String(v);
+    if (val.startsWith('http')) {
+      const display = val.length > 45 ? val.slice(0, 42) + '…' : val;
+      val = `<a href="${val}" target="_blank" rel="noopener">${display}</a>`;
+    } else if (val.length > 300) {
+      val = val.slice(0, 297) + '…';
+    }
+    rows.push(`<tr><td class="prop-key">${label}</td><td class="prop-val">${val}</td></tr>`);
+  }
+  const header = name ? `<div class="popup-name">${name}</div>` : '';
+  const body = rows.length
+    ? `<table class="prop-table">${rows.join('')}</table>`
+    : '<em>No displayable properties</em>';
+  return header + body;
+}
+
+// Status bar
+function setStatus(msg, isHover = false) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.classList.toggle('hover-info', isHover);
+}
+
+function clearHoverStatus() {
+  setStatus('Ready');
+}
+
+// Check if in single-layer mode
+function isSingleLayerMode() {
+  return activeVectorLayers.size === 1;
+}
+
+const LABEL_LIMIT = 100;
+
+// Bounding-box area as a proxy for feature size (works for polygons and lines)
+function geometrySize(geom) {
+  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+  function scan(c) {
+    if (typeof c[0] === 'number') {
+      if (c[1] < minLat) minLat = c[1];
+      if (c[1] > maxLat) maxLat = c[1];
+      if (c[0] < minLon) minLon = c[0];
+      if (c[0] > maxLon) maxLon = c[0];
+    } else { c.forEach(scan); }
+  }
+  scan(geom.coordinates);
+  return isFinite(minLat) ? (maxLat - minLat) * (maxLon - minLon) : 0;
+}
+
+// Create labels layer for a GeoJSON layer
+function createLabelsLayer(data) {
+  const labels = L.layerGroup();
+
+  if (!data.features) return labels;
+
+  const candidates = [];
+
+  data.features.forEach(feature => {
+    const name = getFeatureName(feature.properties);
+    if (!name) return;
+
+    const geom = feature.geometry;
+    if (!geom) return;
+
+    let lat, lng;
+    if (geom.type === 'Point') {
+      [lng, lat] = geom.coordinates;
+    } else if (geom.type === 'Polygon') {
+      const coords = geom.coordinates[0];
+      lat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+      lng = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+    } else if (geom.type === 'MultiPolygon') {
+      const coords = geom.coordinates[0][0];
+      lat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+      lng = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+    } else {
+      return;
+    }
+
+    candidates.push({ name, lat, lng, size: geometrySize(geom) });
+  });
+
+  candidates
+    .sort((a, b) => b.size - a.size)
+    .slice(0, LABEL_LIMIT)
+    .forEach(({ name, lat, lng }) => {
+      labels.addLayer(L.marker([lat, lng], {
+        icon: L.divIcon({ className: 'feature-label', html: name, iconSize: null })
+      }));
+    });
+
+  return labels;
+}
+
+// Apply styling to a GeoJSON layer
+function styleGeoJSONLayer(layerId, layerData) {
+  const { layer, config } = layerData;
+  const { valuePalette } = layerData;
+  const singleMode = isSingleLayerMode();
+
+  let featureIndex = 0;
+  const baseHue = layerHues[config.id];
+
+  layer.eachLayer(featureLayer => {
+    let color;
+    if (valuePalette) {
+      const val = featureLayer.feature?.properties?.[config.style_by];
+      color = valuePalette[val] ?? '#888888';
+    } else {
+      color = singleMode
+        ? getDistinctColor(featureIndex)
+        : getShade(baseHue, featureIndex);
+    }
+
+    featureIndex++;
+
+    if (featureLayer.setStyle) {
+      featureLayer.setStyle({
+        color: color,
+        fillColor: color,
+        weight: 2,
+        fillOpacity: 0.25
+      });
+      // Store for hover reset
+      featureLayer._baseStyle = { color, fillColor: color, weight: 2, fillOpacity: 0.25 };
+    } else if (featureLayer.setRadius) {
+      // CircleMarker
+      featureLayer.setStyle({
+        color: color,
+        fillColor: color,
+        weight: 1,
+        fillOpacity: 0.7
+      });
+      featureLayer._baseStyle = { color, fillColor: color, radius: 5, weight: 1, fillOpacity: 0.7 };
+    }
+  });
+}
+
+// Update all active layers' styling and labels
+function updateAllLayerStyles() {
+  const singleMode = isSingleLayerMode();
+
+  activeVectorLayers.forEach(layerId => {
+    const layerData = loadedLayers[layerId];
+    if (!layerData || ['kml', 'kmz', 'gpx'].includes(layerData.config.type)) return;
+
+    styleGeoJSONLayer(layerId, layerData);
+
+    // Toggle labels
+    if (layerData.labels) {
+      if (singleMode) {
+        layerData.labels.addTo(map);
+      } else {
+        map.removeLayer(layerData.labels);
+      }
+    }
+  });
+}
+
+// Load GeoJSON layer
+async function loadGeoJSON(config) {
+  setStatus(`Loading ${config.name}...`);
+  const response = await fetch(config.file);
+  if (!response.ok) throw new Error(`HTTP ${response.status} for ${config.file}`);
+  const data = await response.json();
+
+  // Assign base hue
+  if (layerHues[config.id] === undefined) {
+    layerHues[config.id] = BASE_HUES[hueIndex++ % BASE_HUES.length];
+  }
+
+  const layer = L.geoJSON(data, {
+    style: () => ({ weight: 2, fillOpacity: 0.25 }),
+    pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 5 }),
+    onEachFeature: (feature, featureLayer) => {
+      featureLayer.bindPopup(() => buildPopupHTML(feature.properties), { maxWidth: 340 });
+      featureLayer.on({
+        mouseover: (e) => {
+          const l = e.target;
+          const info = getFeatureInfo(feature.properties);
+          setStatus(info || 'Click for details', true);
+          if (l.setStyle) {
+            l.setStyle({ weight: 4, fillOpacity: 0.45 });
+            l.bringToFront();
+          } else if (l.setRadius) {
+            l.setStyle({ radius: 8, weight: 2, fillOpacity: 0.9 });
+          }
+        },
+        mouseout: (e) => {
+          const l = e.target;
+          clearHoverStatus();
+          if (l._baseStyle) {
+            if (l.setRadius) {
+              l.setStyle(l._baseStyle);
+            } else if (l.setStyle) {
+              l.setStyle({
+                weight: l._baseStyle.weight,
+                fillOpacity: l._baseStyle.fillOpacity
+              });
+            }
+          }
+        }
+      });
+    }
+  });
+
+  const labels = createLabelsLayer(data);
+
+  // Build value→color palette if style_by is configured
+  let valuePalette = null;
+  if (config.style_by && data.features) {
+    const key = config.style_by;
+    const palette = new Map();
+    for (const f of data.features) {
+      const val = f.properties?.[key];
+      if (val != null && val !== '' && !palette.has(val)) {
+        palette.set(val, getDistinctColor(palette.size));
+      }
+    }
+    valuePalette = Object.fromEntries(palette);
+  }
+
+  setStatus('Ready');
+  return { layer, data, config, labels, valuePalette };
+}
+
+// Load KML layer
+async function loadKML(config) {
+  setStatus(`Loading ${config.name}...`);
+  const response = await fetch(config.file);
+  const text = await response.text();
+  const parser = new DOMParser();
+  const kml = parser.parseFromString(text, "text/xml");
+  const layer = new L.KML(kml);
+  setStatus('Ready');
+  return { layer, data: null, config, labels: null };
+}
+
+// Load GPX layer
+async function loadGPX(config) {
+  setStatus(`Loading ${config.name}...`);
+  return new Promise((resolve, reject) => {
+    const layer = omnivore.gpx(config.file);
+    layer.on('ready', () => {
+      setStatus('Ready');
+      resolve({ layer, data: null, config, labels: null });
+    });
+    layer.on('error', (e) => reject(new Error('Failed to parse GPX')));
+  });
+}
+
+// Load KMZ layer (zipped KML)
+async function loadKMZ(config) {
+  setStatus(`Loading ${config.name}...`);
+  const response = await fetch(config.file);
+  const arrayBuffer = await response.arrayBuffer();
+  const zip = await JSZip.loadAsync(arrayBuffer);
+
+  // Find the .kml file inside the zip
+  const kmlFile = Object.keys(zip.files).find(name => name.endsWith('.kml'));
+  if (!kmlFile) throw new Error('No KML file found inside KMZ');
+
+  const kmlText = await zip.files[kmlFile].async('string');
+  const parser = new DOMParser();
+  const kml = parser.parseFromString(kmlText, 'text/xml');
+  const layer = new L.KML(kml);
+
+  setStatus('Ready');
+  return { layer, data: null, config, labels: null };
+}
+
+// Load CSV as point markers
+async function loadCSV(config) {
+  setStatus(`Loading ${config.name}...`);
+  const response = await fetch(config.file);
+  const text = await response.text();
+
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+  const latIdx = headers.findIndex(h => h === 'lat' || h === 'latitude');
+  const lngIdx = headers.findIndex(h => h === 'lng' || h === 'lon' || h === 'longitude');
+  const typesIdx = headers.findIndex(h => h === 'types');
+  const descIdx = headers.findIndex(h => h === 'description');
+
+  if (latIdx === -1 || lngIdx === -1) {
+    throw new Error('CSV must have lat/lng columns');
+  }
+
+  if (layerHues[config.id] === undefined) {
+    layerHues[config.id] = BASE_HUES[hueIndex++ % BASE_HUES.length];
+  }
+
+  const markers = [];
+  const features = [];  // For label generation
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',');
+    const lat = parseFloat(values[latIdx]);
+    const lng = parseFloat(values[lngIdx]);
+
+    if (isNaN(lat) || isNaN(lng)) continue;
+
+    const name = (typesIdx !== -1 ? values[typesIdx] : '') ||
+                 (descIdx !== -1 ? values[descIdx] : '');
+
+    const marker = L.circleMarker([lat, lng], {
+      radius: 5,
+      weight: 1,
+      fillOpacity: 0.7
+    });
+
+    marker._featureIndex = i - 1;
+    marker._featureName = name;
+
+    // Build a property object from all CSV columns for the popup
+    const rowProps = {};
+    headers.forEach((h, idx) => { if (values[idx] !== undefined) rowProps[h] = values[idx]; });
+    marker.bindPopup(() => buildPopupHTML(rowProps), { maxWidth: 340 });
+
+    marker.on({
+      mouseover: (e) => {
+        setStatus(name || `Point ${i}`, true);
+        e.target.setStyle({ radius: 8, weight: 2, fillOpacity: 0.9 });
+      },
+      mouseout: (e) => {
+        clearHoverStatus();
+        if (e.target._baseStyle) {
+          e.target.setStyle(e.target._baseStyle);
+        }
+      }
+    });
+
+    markers.push(marker);
+    features.push({ geometry: { type: 'Point', coordinates: [lng, lat] }, properties: { name } });
+  }
+
+  const layer = L.layerGroup(markers);
+  layer._markers = markers;  // Store reference for restyling
+
+  const labels = createLabelsLayer({ features });
+
+  setStatus('Ready');
+  return { layer, data: { markers }, config, labels };
+}
+
+// Style CSV layer
+function styleCSVLayer(layerId, layerData) {
+  const { layer, config } = layerData;
+  const singleMode = isSingleLayerMode();
+  const baseHue = layerHues[config.id];
+
+  if (!layer._markers) return;
+
+  layer._markers.forEach((marker, i) => {
+    const color = singleMode ? getDistinctColor(i) : getShade(baseHue, i);
+    marker.setStyle({ color, fillColor: color, weight: 1, fillOpacity: 0.7 });
+    marker._baseStyle = { color, fillColor: color, radius: 5, weight: 1, fillOpacity: 0.7 };
+  });
+}
+
+// Create a GeoRasterLayer from an already-parsed georaster object
+function makeGeoRasterLayer(georaster, config) {
+  const opacity = rasterOpacities[config.id] ?? 0.7;
+  const nBands = georaster.values ? georaster.values.length : georaster.numberOfRasters;
+  const hasAlpha = nBands >= 4;
+  return new GeoRasterLayer({
+    georaster,
+    opacity,
+    resolution: 256,
+    pixelValuesToColorFn: hasAlpha
+      ? values => {
+          const [r, g, b, a] = values;
+          if (a === 0) return null;
+          return `rgba(${r},${g},${b},${a / 255})`;
+        }
+      : undefined
+  });
+}
+
+// Load GeoTIFF layer
+async function loadGeoTIFF(config) {
+  setStatus(`Fetching ${config.name}...`);
+  const response = await fetch(config.file);
+  if (!response.ok) throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
+
+  setStatus(`Reading ${config.name} (${((response.headers.get('content-length') || 0) / 1e6).toFixed(1)}MB)...`);
+  const arrayBuffer = await response.arrayBuffer();
+
+  setStatus(`Parsing ${config.name} GeoTIFF (${(arrayBuffer.byteLength / 1e6).toFixed(1)}MB)...`);
+  const georaster = await parseGeoraster(arrayBuffer);
+
+  setStatus(`Rendering ${config.name}...`);
+  const layer = makeGeoRasterLayer(georaster, config);
+
+  setStatus('Ready');
+  return { layer, data: null, config, labels: null, georaster };
+}
+
+// Toggle layer visibility
+async function toggleLayer(config, checkbox) {
+  const layerId = config.id;
+  const isVector = config.type !== 'geotiff';
+
+  if (checkbox.checked) {
+    checkbox.parentElement.classList.add('loading');
+
+    try {
+      if (!loadedLayers[layerId]) {
+        let layerData;
+        switch (config.type) {
+          case 'geojson':
+            layerData = await loadGeoJSON(config);
+            break;
+          case 'kml':
+            layerData = await loadKML(config);
+            break;
+          case 'kmz':
+            layerData = await loadKMZ(config);
+            break;
+          case 'gpx':
+            layerData = await loadGPX(config);
+            break;
+          case 'csv':
+            layerData = await loadCSV(config);
+            break;
+          case 'geotiff':
+            layerData = await loadGeoTIFF(config);
+            break;
+        }
+        loadedLayers[layerId] = layerData;
+        loadedLayers[layerId].layer.addTo(map);
+      } else if (config.type === 'geotiff') {
+        // GeoRasterLayer tiles render asynchronously; avoid remove+addTo races by
+        // keeping the layer in the map permanently and toggling via setOpacity.
+        const opacity = rasterOpacities[config.id] ?? 0.7;
+        loadedLayers[layerId].layer.setOpacity(opacity);
+      } else {
+        loadedLayers[layerId].layer.addTo(map);
+      }
+
+      if (isVector) {
+        activeVectorLayers.add(layerId);
+      }
+
+      // Style and update labels
+      if (config.type === 'geojson') {
+        styleGeoJSONLayer(layerId, loadedLayers[layerId]);
+      } else if (config.type === 'csv') {
+        styleCSVLayer(layerId, loadedLayers[layerId]);
+      }
+
+      // Update all layers for mode change
+      if (isVector) {
+        updateAllLayerStyles();
+      }
+
+    } catch (err) {
+      console.error(`Failed to load ${config.name}:`, err);
+      setStatus(`Error: ${config.name} — ${err.message}`);
+      checkbox.checked = false;
+    }
+
+    checkbox.parentElement.classList.remove('loading');
+  } else {
+    if (loadedLayers[layerId]) {
+      if (config.type === 'geotiff') {
+        // Keep the layer in the map — toggling via setOpacity avoids async tile render races.
+        loadedLayers[layerId].layer.setOpacity(0);
+      } else {
+        map.removeLayer(loadedLayers[layerId].layer);
+        if (loadedLayers[layerId].labels) {
+          map.removeLayer(loadedLayers[layerId].labels);
+        }
+      }
+    }
+
+    if (isVector) {
+      activeVectorLayers.delete(layerId);
+      updateAllLayerStyles();
+    }
+  }
+}
+
+// Update raster opacity
+function updateRasterOpacity(config, value) {
+  rasterOpacities[config.id] = value;
+  if (loadedLayers[config.id] && loadedLayers[config.id].layer) {
+    loadedLayers[config.id].layer.setOpacity(value);
+  }
+}
+
+// Build the layer panel UI
+function buildPanel() {
+  const content = document.getElementById('panel-content');
+
+  for (const [topName, subCategories] of Object.entries(LAYERS)) {
+    const topDiv = document.createElement('div');
+    topDiv.className = 'top-section';
+
+    const topHeader = document.createElement('div');
+    topHeader.className = 'top-header';
+    topHeader.innerHTML = `<span>${topName}</span><span class="arrow">▼</span>`;
+    topHeader.onclick = () => {
+      topDiv.classList.toggle('collapsed');
+      topHeader.querySelector('.arrow').textContent =
+        topDiv.classList.contains('collapsed') ? '▶' : '▼';
+    };
+
+    const topContent = document.createElement('div');
+    topContent.className = 'top-content';
+
+    for (const [subName, layers] of Object.entries(subCategories)) {
+      const categoryDiv = document.createElement('div');
+      categoryDiv.className = 'category';
+
+      const header = document.createElement('div');
+      header.className = 'category-header';
+      header.innerHTML = `<span>${subName}</span><span>▼</span>`;
+      header.onclick = () => {
+        categoryDiv.classList.toggle('collapsed');
+        header.querySelector('span:last-child').textContent =
+          categoryDiv.classList.contains('collapsed') ? '▶' : '▼';
+      };
+
+      const items = document.createElement('div');
+      items.className = 'category-items';
+
+      for (const layer of layers) {
+        const item = document.createElement('div');
+        item.className = 'layer-item';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `layer-${layer.id}`;
+        checkbox.onchange = () => toggleLayer(layer, checkbox);
+
+        const label = document.createElement('label');
+        label.htmlFor = `layer-${layer.id}`;
+        label.textContent = layer.name;
+
+        const format = document.createElement('span');
+        format.className = 'format';
+        format.textContent = layer.type;
+
+        item.appendChild(checkbox);
+        item.appendChild(label);
+        item.appendChild(format);
+        items.appendChild(item);
+
+        if (layer.type === 'geotiff') {
+          const opacityControl = document.createElement('div');
+          opacityControl.className = 'opacity-control';
+          opacityControl.style.display = 'none';
+
+          const slider = document.createElement('input');
+          slider.type = 'range';
+          slider.min = '0';
+          slider.max = '100';
+          slider.value = '70';
+
+          const valueLabel = document.createElement('span');
+          valueLabel.textContent = '70%';
+
+          slider.oninput = () => {
+            const pct = parseInt(slider.value);
+            valueLabel.textContent = `${pct}%`;
+            updateRasterOpacity(layer, pct / 100);
+          };
+
+          opacityControl.appendChild(document.createTextNode('Opacity:'));
+          opacityControl.appendChild(slider);
+          opacityControl.appendChild(valueLabel);
+          items.appendChild(opacityControl);
+
+          // Show/hide opacity slider with checkbox state
+          checkbox.addEventListener('change', () => {
+            opacityControl.style.display = checkbox.checked ? 'flex' : 'none';
+          });
+        }
+      }
+
+      categoryDiv.appendChild(header);
+      categoryDiv.appendChild(items);
+      topContent.appendChild(categoryDiv);
+    }
+
+    topDiv.appendChild(topHeader);
+    topDiv.appendChild(topContent);
+    content.appendChild(topDiv);
+  }
+}
+
+// Panel toggle
+document.getElementById('panel-header').onclick = (e) => {
+  if (e.target.id !== 'toggle-btn') return;
+  const panel = document.getElementById('panel');
+  panel.classList.toggle('collapsed');
+  document.getElementById('toggle-btn').textContent =
+    panel.classList.contains('collapsed') ? '+' : '−';
+};
+
+// Clear hover on map click
+map.on('click', clearHoverStatus);
+
+// Initialize - load all layer files listed in layers/index.json
+async function init() {
+  try {
+    setStatus('Loading layer catalog...');
+    const indexResponse = await fetch('layers/index.json');
+    const layerFiles = await indexResponse.json();
+
+    const rawLayers = (await Promise.all(
+      layerFiles.map(file =>
+        fetch(`layers/${file}`).then(r => r.json())
+      )
+    )).flat();
+
+    LAYERS = parseLayersConfig(rawLayers);
+    buildPanel();
+    setStatus('Ready');
+  } catch (err) {
+    console.error('Failed to load layer catalog:', err);
+    setStatus(`Error loading layer catalog: ${err.message}`);
+  }
+}
+
+init();
+
+// --- Geolocation: current position dot + locate button ---
+(function() {
+  let locationMarker = null;
+  let accuracyCircle = null;
+  let watchId = null;
+
+  // Create locate control
+  const LocateControl = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd() {
+      const btn = L.DomUtil.create('div', 'locate-btn leaflet-bar');
+      btn.innerHTML = '⌖';
+      btn.title = 'Center on current location';
+      L.DomEvent.disableClickPropagation(btn);
+      btn.onclick = () => {
+        if (locationMarker) {
+          map.setView(locationMarker.getLatLng(), Math.max(map.getZoom(), 14));
+        } else {
+          // Trigger a one-shot locate if we don't have position yet
+          map.locate({ setView: true, maxZoom: 14 });
+        }
+      };
+      this._btn = btn;
+      return btn;
+    }
+  });
+
+  const locateControl = new LocateControl();
+  map.addControl(locateControl);
+
+  function updatePosition(lat, lng, accuracy) {
+    if (!locationMarker) {
+      locationMarker = L.circleMarker([lat, lng], {
+        radius: 8,
+        fillColor: '#2563eb',
+        fillOpacity: 1,
+        color: 'white',
+        weight: 3,
+        pane: 'markerPane'
+      }).addTo(map);
+
+      accuracyCircle = L.circle([lat, lng], {
+        radius: accuracy,
+        fillColor: '#2563eb',
+        fillOpacity: 0.08,
+        color: '#2563eb',
+        weight: 1,
+        opacity: 0.3,
+        interactive: false
+      }).addTo(map);
+    } else {
+      locationMarker.setLatLng([lat, lng]);
+      accuracyCircle.setLatLng([lat, lng]);
+      accuracyCircle.setRadius(accuracy);
+    }
+    locateControl._btn.classList.add('active');
+  }
+
+  // Watch position continuously
+  if ('geolocation' in navigator) {
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => updatePosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
+      (err) => console.warn('Geolocation error:', err.message),
+      { enableHighAccuracy: true, maximumAge: 10000 }
+    );
+  }
+
+  // Also handle Leaflet's locate events (for the button fallback)
+  map.on('locationfound', (e) => updatePosition(e.latitude, e.longitude, e.accuracy));
+})();
+</script>
+
+</body>
+</html>
