@@ -176,6 +176,15 @@
       text-transform: uppercase;
     }
 
+    .layer-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      border: 1px solid rgba(0,0,0,0.2);
+      flex-shrink: 0;
+      display: none;
+    }
+
     .loading {
       opacity: 0.5;
     }
@@ -402,11 +411,6 @@ function parseLayersConfig(rawLayers) {
 // Distinct color palette for single-layer mode (12 distinct hues)
 const DISTINCT_HUES = [0, 30, 60, 120, 180, 210, 270, 300, 330, 150, 240, 45];
 
-// Base hues for multi-layer mode
-const BASE_HUES = [0, 25, 160, 200, 270, 320, 45, 140, 220, 350];
-
-let hueIndex = 0;
-
 // Convert HSL to hex
 function hslToHex(h, s, l) {
   s /= 100;
@@ -418,6 +422,16 @@ function hslToHex(h, s, l) {
     return Math.round(255 * color).toString(16).padStart(2, '0');
   };
   return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+// Get base hue for a layer by dividing the color wheel into N equal segments,
+// where N = number of currently active vector layers.
+function getLayerHue(layerId) {
+  const activeArray = [...activeVectorLayers];
+  const index = activeArray.indexOf(layerId);
+  const n = activeArray.length;
+  if (index === -1 || n === 0) return 0;
+  return (index * 360 / n) % 360;
 }
 
 // Get distinct color (for single-layer mode)
@@ -463,9 +477,9 @@ L.control.layers(baseLayers, null, { position: 'topleft', collapsed: true }).add
 
 // State
 const loadedLayers = {};      // layerId -> { layer, data, config, labels }
-const activeVectorLayers = new Set();  // track active vector layer IDs
-const layerHues = {};         // assigned base hue per layer
+const activeVectorLayers = new Set();  // track active vector layer IDs (insertion-ordered)
 const rasterOpacities = {};   // layerId -> opacity value
+const layerSwatches = {};     // layerId -> swatch DOM element
 
 // Ordered list of property keys likely to hold a human-readable name
 const NAME_KEYS = [
@@ -629,7 +643,7 @@ function styleGeoJSONLayer(layerId, layerData) {
   const singleMode = isSingleLayerMode();
 
   let featureIndex = 0;
-  const baseHue = layerHues[config.id];
+  const baseHue = getLayerHue(config.id);
 
   layer.eachLayer(featureLayer => {
     let color;
@@ -685,6 +699,20 @@ function updateAllLayerStyles() {
       }
     }
   });
+  updateAllSwatches();
+}
+
+// Update color swatches in the layer panel
+function updateAllSwatches() {
+  const multiMode = activeVectorLayers.size > 1;
+  for (const [layerId, swatch] of Object.entries(layerSwatches)) {
+    if (multiMode && activeVectorLayers.has(layerId)) {
+      swatch.style.display = 'inline-block';
+      swatch.style.background = getShade(getLayerHue(layerId), 0);
+    } else {
+      swatch.style.display = 'none';
+    }
+  }
 }
 
 // Load GeoJSON layer
@@ -693,11 +721,6 @@ async function loadGeoJSON(config) {
   const response = await fetch(config.file);
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${config.file}`);
   const data = await response.json();
-
-  // Assign base hue
-  if (layerHues[config.id] === undefined) {
-    layerHues[config.id] = BASE_HUES[hueIndex++ % BASE_HUES.length];
-  }
 
   const layer = L.geoJSON(data, {
     style: () => ({ weight: 2, fillOpacity: 0.25 }),
@@ -817,10 +840,6 @@ async function loadCSV(config) {
     throw new Error('CSV must have lat/lng columns');
   }
 
-  if (layerHues[config.id] === undefined) {
-    layerHues[config.id] = BASE_HUES[hueIndex++ % BASE_HUES.length];
-  }
-
   const markers = [];
   const features = [];  // For label generation
 
@@ -878,7 +897,7 @@ async function loadCSV(config) {
 function styleCSVLayer(layerId, layerData) {
   const { layer, config } = layerData;
   const singleMode = isSingleLayerMode();
-  const baseHue = layerHues[config.id];
+  const baseHue = getLayerHue(config.id);
 
   if (!layer._markers) return;
 
@@ -1069,12 +1088,17 @@ function buildPanel() {
         label.htmlFor = `layer-${layer.id}`;
         label.textContent = layer.name;
 
+        const swatch = document.createElement('span');
+        swatch.className = 'layer-swatch';
+        layerSwatches[layer.id] = swatch;
+
         const format = document.createElement('span');
         format.className = 'format';
         format.textContent = layer.type;
 
         item.appendChild(checkbox);
         item.appendChild(label);
+        item.appendChild(swatch);
         item.appendChild(format);
         items.appendChild(item);
 

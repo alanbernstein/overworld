@@ -4,4 +4,4 @@ It supports a variety of geodata formats, with a preference for geojson.
 
 It can render georeferenced tif files, which can easily be created at https://mapwarper.net/ (upload, rectify, export).
 
-![screenshot.png]
+![screenshot](screenshot.png)
