@@ -189,6 +189,47 @@
       opacity: 0.5;
     }
 
+    #search-bar {
+      padding: 6px 8px;
+      border-bottom: 1px solid #e5e7eb;
+      position: relative;
+    }
+
+    #search-input {
+      width: 100%;
+      padding: 4px 22px 4px 7px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 12px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    #search-input:focus {
+      border-color: #2563eb;
+    }
+
+    #search-clear {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #9ca3af;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      display: none;
+    }
+
+    #search-clear:hover { color: #374151; }
+
+    /* While searching, expand all collapsed sections so results are visible */
+    #panel.searching .top-content,
+    #panel.searching .category-items { display: block !important; }
+
     #status {
       padding: 5px 12px;
       font-size: 11px;
@@ -305,6 +346,10 @@
   <div id="panel-header">
     <span>Layers</span>
     <button id="toggle-btn">−</button>
+  </div>
+  <div id="search-bar">
+    <input id="search-input" type="text" placeholder="Filter layers…" autocomplete="off" />
+    <button id="search-clear">×</button>
   </div>
   <div id="panel-content"></div>
   <div id="status">Ready</div>
@@ -1119,6 +1164,55 @@ async function applyHash() {
   }
 }
 
+// Filter layer items by search query
+function applySearch(query) {
+  const q = query.trim().toLowerCase();
+  const panel = document.getElementById('panel');
+
+  if (!q) {
+    panel.classList.remove('searching');
+    document.querySelectorAll('.layer-item, .category, .top-section').forEach(el => {
+      el.style.display = '';
+    });
+    return;
+  }
+
+  panel.classList.add('searching');
+
+  for (const sec of document.querySelectorAll('.top-section')) {
+    let secVisible = false;
+    for (const cat of sec.querySelectorAll('.category')) {
+      let catVisible = false;
+      for (const item of cat.querySelectorAll('.layer-item')) {
+        const matches = item.querySelector('label').textContent.toLowerCase().includes(q);
+        item.style.display = matches ? '' : 'none';
+        if (matches) catVisible = true;
+      }
+      cat.style.display = catVisible ? '' : 'none';
+      if (catVisible) secVisible = true;
+    }
+    sec.style.display = secVisible ? '' : 'none';
+  }
+}
+
+// Wire up search input (called after DOM is ready)
+function initSearch() {
+  const input = document.getElementById('search-input');
+  const clear = document.getElementById('search-clear');
+
+  input.addEventListener('input', () => {
+    clear.style.display = input.value ? 'block' : 'none';
+    applySearch(input.value);
+  });
+
+  clear.addEventListener('click', () => {
+    input.value = '';
+    clear.style.display = 'none';
+    applySearch('');
+    input.focus();
+  });
+}
+
 // Build the layer panel UI
 function buildPanel() {
   const content = document.getElementById('panel-content');
@@ -1258,6 +1352,7 @@ async function init() {
 
     LAYERS = parseLayersConfig(rawLayers);
     buildPanel();
+    initSearch();
     await applyHash();
     setStatus('Ready');
   } catch (err) {
