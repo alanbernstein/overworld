@@ -323,6 +323,14 @@ const TOP_LEVEL_NAMES = {
 };
 const TOP_LEVEL_ORDER = ['austin', 'seattle', 'texas', 'usa'];
 
+// Default map view per region key
+const REGION_VIEWS = {
+  'austin':  { center: [30.2672, -97.7431], zoom: 11 },
+  'seattle': { center: [47.6062, -122.3321], zoom: 11 },
+  'texas':   { center: [31.0,    -100.0],   zoom: 6  },
+  'usa':     { center: [38.0,    -96.0],    zoom: 4  },
+};
+
 // Subcategory display names keyed by tag
 const SUB_CATEGORY_NAMES = {
   'bike':          'Bike',
@@ -475,11 +483,19 @@ const baseLayers = {
 baseLayers["CartoDB Positron (muted)"].addTo(map);
 L.control.layers(baseLayers, null, { position: 'topleft', collapsed: true }).addTo(map);
 
+// Reverse map: display name → dir key  e.g. 'Austin' → 'austin'
+const TOP_LEVEL_KEYS = Object.fromEntries(
+  Object.entries(TOP_LEVEL_NAMES).map(([k, v]) => [v, k])
+);
+
 // State
 const loadedLayers = {};      // layerId -> { layer, data, config, labels }
 const activeVectorLayers = new Set();  // track active vector layer IDs (insertion-ordered)
 const rasterOpacities = {};   // layerId -> opacity value
 const layerSwatches = {};     // layerId -> swatch DOM element
+const topSectionDivs = {};    // dirKey -> top-section div element
+const layerConfigs = {};      // layerId -> config object
+const layerCheckboxes = {};   // layerId -> checkbox element
 
 // Ordered list of property keys likely to hold a human-readable name
 const NAME_KEYS = [
@@ -1004,6 +1020,8 @@ async function toggleLayer(config, checkbox) {
         updateAllLayerStyles();
       }
 
+      updateHash();
+
     } catch (err) {
       console.error(`Failed to load ${config.name}:`, err);
       setStatus(`Error: ${config.name} — ${err.message}`);
@@ -1028,6 +1046,8 @@ async function toggleLayer(config, checkbox) {
       activeVectorLayers.delete(layerId);
       updateAllLayerStyles();
     }
+
+    updateHash();
   }
 }
 
@@ -1039,13 +1059,75 @@ function updateRasterOpacity(config, value) {
   }
 }
 
+// Serialize current UI state to the URL hash
+function updateHash() {
+  const parts = [];
+
+  // r: only included when some regions are collapsed (default is all expanded)
+  const collapsedKeys = Object.entries(topSectionDivs)
+    .filter(([, div]) => div.classList.contains('collapsed'))
+    .map(([k]) => k);
+  if (collapsedKeys.length > 0) {
+    const expandedKeys = Object.keys(topSectionDivs)
+      .filter(k => !collapsedKeys.includes(k));
+    if (expandedKeys.length > 0) parts.push('r=' + expandedKeys.join(','));
+  }
+
+  // l: active vector layers
+  if (activeVectorLayers.size > 0) {
+    parts.push('l=' + [...activeVectorLayers].join(','));
+  }
+
+  history.replaceState(null, '', parts.length ? '#' + parts.join('&') : location.pathname + location.search);
+}
+
+// Restore UI state from the URL hash
+async function applyHash() {
+  const hash = location.hash.slice(1);
+  if (!hash) return;
+
+  const params = {};
+  for (const part of hash.split('&')) {
+    const eq = part.indexOf('=');
+    if (eq !== -1) params[part.slice(0, eq)] = part.slice(eq + 1);
+  }
+
+  // Collapse sections not listed in r, and center map on the first listed region
+  if (params.r) {
+    const expandedKeys = params.r.split(',');
+    const expandedSet = new Set(expandedKeys);
+    for (const [key, div] of Object.entries(topSectionDivs)) {
+      if (!expandedSet.has(key) && !div.classList.contains('collapsed')) {
+        div.classList.add('collapsed');
+        div.querySelector('.arrow').textContent = '▶';
+      }
+    }
+    const view = REGION_VIEWS[expandedKeys[0]];
+    if (view) map.setView(view.center, view.zoom);
+  }
+
+  // Enable layers listed in l
+  if (params.l) {
+    for (const layerId of params.l.split(',')) {
+      const config = layerConfigs[layerId];
+      const checkbox = layerCheckboxes[layerId];
+      if (config && checkbox && !checkbox.checked) {
+        checkbox.checked = true;
+        await toggleLayer(config, checkbox);
+      }
+    }
+  }
+}
+
 // Build the layer panel UI
 function buildPanel() {
   const content = document.getElementById('panel-content');
 
   for (const [topName, subCategories] of Object.entries(LAYERS)) {
+    const topKey = TOP_LEVEL_KEYS[topName] || topName.toLowerCase();
     const topDiv = document.createElement('div');
     topDiv.className = 'top-section';
+    topSectionDivs[topKey] = topDiv;
 
     const topHeader = document.createElement('div');
     topHeader.className = 'top-header';
@@ -1054,6 +1136,7 @@ function buildPanel() {
       topDiv.classList.toggle('collapsed');
       topHeader.querySelector('.arrow').textContent =
         topDiv.classList.contains('collapsed') ? '▶' : '▼';
+      updateHash();
     };
 
     const topContent = document.createElement('div');
@@ -1079,10 +1162,13 @@ function buildPanel() {
         const item = document.createElement('div');
         item.className = 'layer-item';
 
+        layerConfigs[layer.id] = layer;
+
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = `layer-${layer.id}`;
         checkbox.onchange = () => toggleLayer(layer, checkbox);
+        layerCheckboxes[layer.id] = checkbox;
 
         const label = document.createElement('label');
         label.htmlFor = `layer-${layer.id}`;
@@ -1172,6 +1258,7 @@ async function init() {
 
     LAYERS = parseLayersConfig(rawLayers);
     buildPanel();
+    await applyHash();
     setStatus('Ready');
   } catch (err) {
     console.error('Failed to load layer catalog:', err);
