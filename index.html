@@ -670,6 +670,15 @@ const BASE_LAYER_DEFS = {
 const DEFAULT_BASE_LAYER = 'cyclosm';
 let activeBaseKey = DEFAULT_BASE_LAYER;
 
+// OpenRouteService API key — get a free key at https://openrouteservice.org
+ const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImE5NjZhYWQ3MTdlZTQyYTI4ZWNjMmYwNzM3ZWI4Y2Y1IiwiaCI6Im11cm11cjY0In0=';
+
+// Current user GPS position (kept in sync by the geolocation watcher below)
+let userLatLng = null;
+
+// Active route polyline layer
+let routeLayer = null;
+
 // Build label→layer map for Leaflet's layers control
 const baseLayers = Object.fromEntries(
   Object.entries(BASE_LAYER_DEFS).map(([, {label, layer}]) => [label, layer])
@@ -1397,6 +1406,51 @@ function initPanelSections() {
   }
 }
 
+// Route from current location to dest using the given ORS profile
+async function routeTo(destLat, destLng, profile = 'cycling-regular') {
+  if (!userLatLng) {
+    setStatus('Enable location sharing to get directions');
+    return;
+  }
+  if (!ORS_API_KEY) {
+    setStatus('ORS_API_KEY not configured');
+    return;
+  }
+  setStatus('Getting directions…');
+  if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+
+  try {
+    const resp = await fetch(
+      `https://api.openrouteservice.org/v2/directions/${profile}/geojson`,
+      {
+        method: 'POST',
+        headers: { 'Authorization': ORS_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          coordinates: [[userLatLng.lng, userLatLng.lat], [destLng, destLat]]
+        })
+      }
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const geojson = await resp.json();
+
+    routeLayer = L.geoJSON(geojson, {
+      style: { color: '#ea580c', weight: 4, opacity: 0.8 }
+    }).addTo(map);
+    map.fitBounds(routeLayer.getBounds(), { padding: [20, 20] });
+
+    const summary = geojson.features[0]?.properties?.summary;
+    if (summary) {
+      const km = (summary.distance / 1000).toFixed(1);
+      const mins = Math.round(summary.duration / 60);
+      setStatus(`${km} km · ${mins} min by bike`);
+    } else {
+      setStatus('Route found');
+    }
+  } catch (err) {
+    setStatus(`Routing failed: ${err.message}`);
+  }
+}
+
 // Geocoder: address/place search via Nominatim
 function initGeocoder() {
   const input = document.getElementById('geocode-input');
@@ -1409,6 +1463,7 @@ function initGeocoder() {
     if (!q) return;
 
     resultsDiv.innerHTML = '<div class="geocode-status">Searching…</div>';
+    if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
 
     try {
       const bounds = map.getBounds();
@@ -1436,8 +1491,36 @@ function initGeocoder() {
           const lng = parseFloat(r.lon);
           map.setView([lat, lng], 14);
           if (searchMarker) map.removeLayer(searchMarker);
+          if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+
+          const popupEl = document.createElement('div');
+          popupEl.style.cssText = 'font-size:11px;max-width:190px';
+          const nameEl = document.createElement('div');
+          nameEl.textContent = r.display_name;
+          nameEl.style.marginBottom = '6px';
+          const dirRow = document.createElement('div');
+          dirRow.style.cssText = 'display:flex;align-items:center;gap:4px';
+          const dirLabel = document.createElement('span');
+          dirLabel.textContent = 'Directions:';
+          dirRow.appendChild(dirLabel);
+          const btnStyle = 'font-size:11px;padding:2px 7px;cursor:pointer;'
+            + 'font-family:inherit;background:#2563eb;color:white;border:none;border-radius:4px';
+          for (const [label, profile] of [
+            ['bike',  'cycling-regular'],
+            ['walk',  'foot-walking'],
+            ['drive', 'driving-car'],
+          ]) {
+            const btn = document.createElement('button');
+            btn.textContent = label;
+            btn.style.cssText = btnStyle;
+            btn.onclick = () => routeTo(lat, lng, profile);
+            dirRow.appendChild(btn);
+          }
+          popupEl.appendChild(nameEl);
+          popupEl.appendChild(dirRow);
+
           searchMarker = L.marker([lat, lng]).addTo(map)
-            .bindPopup(r.display_name).openPopup();
+            .bindPopup(popupEl).openPopup();
           resultsDiv.innerHTML = '';
           input.value = r.display_name;
         });
@@ -1635,6 +1718,7 @@ init();
   map.addControl(locateControl);
 
   function updatePosition(lat, lng, accuracy) {
+    userLatLng = L.latLng(lat, lng);
     if (!locationMarker) {
       locationMarker = L.circleMarker([lat, lng], {
         radius: 8,
