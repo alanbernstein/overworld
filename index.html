@@ -545,7 +545,7 @@ function parseLayersConfig(rawLayers) {
     const subTag = subTags.find(t => SUB_CATEGORY_NAMES[t]) || subTags[0] || null;
     const subName = subTag
       ? (SUB_CATEGORY_NAMES[subTag] || subTag[0].toUpperCase() + subTag.slice(1))
-      : 'General';
+      : 'Personal';
 
     if (!organized[topName]) organized[topName] = {};
     if (!organized[topName][subName]) organized[topName][subName] = [];
@@ -567,11 +567,11 @@ function parseLayersConfig(rawLayers) {
     return i === -1 ? 999 : i;
   };
 
-  // Sort subcategories by SUB_CATEGORY_ORDER, General last
+  // Sort subcategories by SUB_CATEGORY_ORDER, Personal last
   const subRank = name => {
     const tag = Object.keys(SUB_CATEGORY_NAMES).find(k => SUB_CATEGORY_NAMES[k] === name);
     const i = SUB_CATEGORY_ORDER.indexOf(tag || '');
-    return i === -1 ? (name === 'General' ? 998 : 500) : i;
+    return i === -1 ? (name === 'Personal' ? 998 : 500) : i;
   };
 
   const sorted = {};
