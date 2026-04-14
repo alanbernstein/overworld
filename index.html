@@ -230,6 +230,84 @@
     #panel.searching .top-content,
     #panel.searching .category-items { display: block !important; }
 
+    /* Main panel sections (Search + Layers) */
+    .panel-section {
+      border-bottom: 2px solid #d1d5db;
+    }
+    .panel-section:last-child {
+      border-bottom: none;
+    }
+    .panel-section-header {
+      padding: 5px 12px;
+      background: #dbeafe;
+      font-weight: 700;
+      font-size: 12px;
+      color: #1e40af;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .panel-section-header:hover {
+      background: #bfdbfe;
+    }
+    .panel-section.collapsed .panel-section-content {
+      display: none;
+    }
+
+    /* Geocoder */
+    #geocode-bar {
+      padding: 6px 8px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      gap: 4px;
+    }
+    #geocode-input {
+      flex: 1;
+      padding: 4px 7px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 12px;
+      outline: none;
+      font-family: inherit;
+    }
+    #geocode-input:focus {
+      border-color: #2563eb;
+    }
+    #geocode-submit {
+      padding: 4px 8px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    #geocode-submit:hover {
+      background: #1d4ed8;
+    }
+    #geocode-results {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .geocode-result {
+      padding: 5px 12px;
+      font-size: 11px;
+      cursor: pointer;
+      border-bottom: 1px solid #f3f4f6;
+      line-height: 1.3;
+    }
+    .geocode-result:hover {
+      background: #eff6ff;
+    }
+    .geocode-status {
+      padding: 5px 12px;
+      font-size: 11px;
+      color: #6b7280;
+      font-style: italic;
+    }
+
     #status {
       padding: 5px 12px;
       font-size: 11px;
@@ -344,14 +422,37 @@
 
 <div id="panel">
   <div id="panel-header">
-    <span>Layers</span>
+    <span>Overworld</span>
     <button id="toggle-btn">−</button>
   </div>
-  <div id="search-bar">
-    <input id="search-input" type="text" placeholder="Filter layers…" autocomplete="off" />
-    <button id="search-clear">×</button>
+  <div id="panel-content">
+    <div class="panel-section" id="geocode-section">
+      <div class="panel-section-header">
+        <span>Search</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="panel-section-content">
+        <div id="geocode-bar">
+          <input id="geocode-input" type="text" placeholder="Address or place name…" autocomplete="off" />
+          <button id="geocode-submit">Search</button>
+        </div>
+        <div id="geocode-results"></div>
+      </div>
+    </div>
+    <div class="panel-section" id="layers-section">
+      <div class="panel-section-header">
+        <span>Layers</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="panel-section-content">
+        <div id="search-bar">
+          <input id="search-input" type="text" placeholder="Filter layers…" autocomplete="off" />
+          <button id="search-clear">×</button>
+        </div>
+        <div id="layers-content"></div>
+      </div>
+    </div>
   </div>
-  <div id="panel-content"></div>
   <div id="status">Ready</div>
 </div>
 
@@ -1213,9 +1314,76 @@ function initSearch() {
   });
 }
 
+// Wire up collapse toggles for the Search and Layers panel sections
+function initPanelSections() {
+  for (const section of document.querySelectorAll('.panel-section')) {
+    const header = section.querySelector('.panel-section-header');
+    const arrow = header.querySelector('.arrow');
+    header.addEventListener('click', () => {
+      section.classList.toggle('collapsed');
+      arrow.textContent = section.classList.contains('collapsed') ? '▶' : '▼';
+    });
+  }
+}
+
+// Geocoder: address/place search via Nominatim
+function initGeocoder() {
+  const input = document.getElementById('geocode-input');
+  const submit = document.getElementById('geocode-submit');
+  const resultsDiv = document.getElementById('geocode-results');
+  let searchMarker = null;
+
+  async function doSearch() {
+    const q = input.value.trim();
+    if (!q) return;
+
+    resultsDiv.innerHTML = '<div class="geocode-status">Searching…</div>';
+
+    try {
+      const bounds = map.getBounds();
+      const viewbox = [
+        bounds.getWest(), bounds.getSouth(),
+        bounds.getEast(), bounds.getNorth()
+      ].join(',');
+      const url = 'https://nominatim.openstreetmap.org/search?q='
+        + encodeURIComponent(q) + '&format=json&limit=5&viewbox=' + viewbox;
+      const resp = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+      const results = await resp.json();
+
+      resultsDiv.innerHTML = '';
+      if (!results.length) {
+        resultsDiv.innerHTML = '<div class="geocode-status">No results found</div>';
+        return;
+      }
+
+      for (const r of results) {
+        const item = document.createElement('div');
+        item.className = 'geocode-result';
+        item.textContent = r.display_name;
+        item.addEventListener('click', () => {
+          const lat = parseFloat(r.lat);
+          const lng = parseFloat(r.lon);
+          map.setView([lat, lng], 14);
+          if (searchMarker) map.removeLayer(searchMarker);
+          searchMarker = L.marker([lat, lng]).addTo(map)
+            .bindPopup(r.display_name).openPopup();
+          resultsDiv.innerHTML = '';
+          input.value = r.display_name;
+        });
+        resultsDiv.appendChild(item);
+      }
+    } catch (err) {
+      resultsDiv.innerHTML = '<div class="geocode-status">Search failed</div>';
+    }
+  }
+
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+  submit.addEventListener('click', doSearch);
+}
+
 // Build the layer panel UI
 function buildPanel() {
-  const content = document.getElementById('panel-content');
+  const content = document.getElementById('layers-content');
 
   for (const [topName, subCategories] of Object.entries(LAYERS)) {
     const topKey = TOP_LEVEL_KEYS[topName] || topName.toLowerCase();
@@ -1353,6 +1521,8 @@ async function init() {
     LAYERS = parseLayersConfig(rawLayers);
     buildPanel();
     initSearch();
+    initPanelSections();
+    initGeocoder();
     await applyHash();
     setStatus('Ready');
   } catch (err) {
