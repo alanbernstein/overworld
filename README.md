@@ -8,6 +8,30 @@ Data sources are defined with a simple json file. There is no capability to uplo
 
 ![screenshot](screenshot.png)
 
+# URL fragments
+
+State is encoded in the URL fragment and updates live, so links can be shared to a specific view.
+
+Parameters:
+- `r` — comma-separated region keys to expand (`austin`, `seattle`, `texas`, `usa`). Omitted when all regions are expanded (the default).
+- `l` — comma-separated layer IDs to enable. Layer IDs are the lowercased, hyphenated layer names.
+
+Examples:
+
+```
+# Open with only the Seattle section expanded, centered on Seattle
+#r=seattle
+
+# Open with Austin and Texas sections expanded
+#r=austin,texas
+
+# Open with two layers enabled
+#l=austin-zip-codes,austin-city-council-districts
+
+# Open centered on Seattle with a specific layer enabled
+#r=seattle&l=seattle-link-rail-stations
+```
+
 # Alternatives
 - google earth
 - qgis

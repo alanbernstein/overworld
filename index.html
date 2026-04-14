@@ -693,6 +693,8 @@ function getFeatureName(props) {
   if (props.district) return `District ${props.district}`;
   if (props.garb_rt) return `Route ${props.garb_rt}${props.garb_day ? ' · ' + props.garb_day : ''}`;
   if (props.zipcode) return [props.zipcode, props.city, props.state].filter(Boolean).join(', ');
+  if (props.elevation_ft != null) return `${props.elevation_ft} ft`;
+  if (props.elevationM   != null) return `${props.elevationM} m`;
   return '';
 }
 
