@@ -629,28 +629,60 @@ function getShade(baseHue, index) {
 // Initialize map centered on Austin
 const map = L.map("map").setView([30.2672, -97.7431], 11);
 
-// Base layer options
-const baseLayers = {
-  "CartoDB Positron (muted)": L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
-  ),
-  "CartoDB Voyager": L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
-  ),
-  "OpenStreetMap": L.tileLayer(
-    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    { maxZoom: 19, attribution: '&copy; OpenStreetMap' }
-  ),
-  "CartoDB Dark": L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
-  )
+// Base layer definitions keyed by URL-hash slug
+const BASE_LAYER_DEFS = {
+  'cyclosm': {
+    label: 'CyclOSM',
+    layer: L.tileLayer(
+      'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
+      { maxZoom: 20, attribution: '&copy; <a href="https://github.com/cyclosm/cyclosm-cartocss-style/releases">CyclOSM</a> &copy; OpenStreetMap' }
+    )
+  },
+  'positron': {
+    label: 'CartoDB Positron',
+    layer: L.tileLayer(
+      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
+    )
+  },
+  'voyager': {
+    label: 'CartoDB Voyager',
+    layer: L.tileLayer(
+      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+      { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
+    )
+  },
+  'osm': {
+    label: 'OpenStreetMap',
+    layer: L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 19, attribution: '&copy; OpenStreetMap' }
+    )
+  },
+  'dark': {
+    label: 'CartoDB Dark',
+    layer: L.tileLayer(
+      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
+    )
+  }
 };
+const DEFAULT_BASE_LAYER = 'cyclosm';
+let activeBaseKey = DEFAULT_BASE_LAYER;
 
-baseLayers["CartoDB Positron (muted)"].addTo(map);
+// Build label→layer map for Leaflet's layers control
+const baseLayers = Object.fromEntries(
+  Object.entries(BASE_LAYER_DEFS).map(([, {label, layer}]) => [label, layer])
+);
+
+BASE_LAYER_DEFS[DEFAULT_BASE_LAYER].layer.addTo(map);
 L.control.layers(baseLayers, null, { position: 'topleft', collapsed: true }).addTo(map);
+
+map.on('baselayerchange', e => {
+  const entry = Object.entries(BASE_LAYER_DEFS).find(([, {label}]) => label === e.name);
+  if (entry) activeBaseKey = entry[0];
+  updateHash();
+});
 
 // Reverse map: display name → dir key  e.g. 'Austin' → 'austin'
 const TOP_LEVEL_KEYS = Object.fromEntries(
@@ -1244,6 +1276,11 @@ function updateHash() {
     if (expandedKeys.length > 0) parts.push('r=' + expandedKeys.join(','));
   }
 
+  // b: base layer (omitted when default)
+  if (activeBaseKey !== DEFAULT_BASE_LAYER) {
+    parts.push('b=' + activeBaseKey);
+  }
+
   // l: active vector layers
   if (activeVectorLayers.size > 0) {
     parts.push('l=' + [...activeVectorLayers].join(','));
@@ -1261,6 +1298,15 @@ async function applyHash() {
   for (const part of hash.split('&')) {
     const eq = part.indexOf('=');
     if (eq !== -1) params[part.slice(0, eq)] = part.slice(eq + 1);
+  }
+
+  // b: base layer
+  if (params.b && BASE_LAYER_DEFS[params.b]) {
+    Object.values(BASE_LAYER_DEFS).forEach(({layer}) => {
+      if (map.hasLayer(layer)) map.removeLayer(layer);
+    });
+    BASE_LAYER_DEFS[params.b].layer.addTo(map);
+    activeBaseKey = params.b;
   }
 
   // Collapse sections not listed in r, and center map on the first listed region
