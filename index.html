@@ -524,8 +524,9 @@ function parseLayersConfig(rawLayers) {
   const organized = {};
 
   for (const entry of rawLayers) {
-    let file = null, type = null;
-    if (entry.file_geojson)                        { file = entry.file_geojson;                    type = 'geojson'; }
+    let file = null, type = null, isTileUrl = false;
+    if (entry.tile_url)                            { file = entry.tile_url;                        type = 'tile'; isTileUrl = true; }
+    else if (entry.file_geojson)                   { file = entry.file_geojson;                    type = 'geojson'; }
     else if (entry.file_kml)                       { file = entry.file_kml;                        type = 'kml'; }
     else if (entry.file_csv)                       { file = entry.file_csv;                        type = 'csv'; }
     else if (entry.file_gpx)                       { file = entry.file_gpx;                        type = 'gpx'; }
@@ -541,12 +542,15 @@ function parseLayersConfig(rawLayers) {
 
     const id = entry.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
 
-    // Top level from the first path component of the file
-    const topDir = file.split('/')[0];
+    // Subcategory from tags
+    const tags = (entry.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+
+    // Top level: tile layers use tags; file-based layers use first path component
+    const topDir = isTileUrl
+      ? (tags.find(t => TOP_LEVEL_NAMES[t]) || tags[0] || 'other')
+      : file.split('/')[0];
     const topName = TOP_LEVEL_NAMES[topDir] || (topDir[0].toUpperCase() + topDir.slice(1));
 
-    // Subcategory from tags, excluding the tag that matches the top-level directory
-    const tags = (entry.tags || '').split(',').map(t => t.trim()).filter(Boolean);
     const subTags = tags.filter(t => t !== topDir);
     const subTag = subTags.find(t => SUB_CATEGORY_NAMES[t]) || subTags[0] || null;
     const subName = subTag
@@ -559,10 +563,12 @@ function parseLayersConfig(rawLayers) {
     organized[topName][subName].push({
       id,
       name: entry.name,
-      file: 'data/' + file,
+      file: isTileUrl ? file : 'data/' + file,
       type,
       source_url: entry.source_url || null,
       style_by: entry.style_by || null,
+      max_zoom: entry.max_zoom || null,
+      attribution: entry.attribution || null,
     });
   }
 
@@ -1184,10 +1190,23 @@ async function loadGeoTIFF(config) {
   return { layer, data: null, config, labels: null, georaster };
 }
 
+// Load ArcGIS tile layer
+function loadTileLayer(config) {
+  const opacity = rasterOpacities[config.id] ?? 0.7;
+  const layer = L.tileLayer(config.file, {
+    maxNativeZoom: config.max_zoom || 12,
+    maxZoom: 20,
+    opacity,
+    zIndex: 3,
+    attribution: config.attribution || ''
+  });
+  return { layer, data: null, config, labels: null };
+}
+
 // Toggle layer visibility
 async function toggleLayer(config, checkbox) {
   const layerId = config.id;
-  const isVector = config.type !== 'geotiff';
+  const isVector = !['geotiff', 'tile'].includes(config.type);
 
   if (checkbox.checked) {
     checkbox.parentElement.classList.add('loading');
@@ -1213,6 +1232,9 @@ async function toggleLayer(config, checkbox) {
             break;
           case 'geotiff':
             layerData = await loadGeoTIFF(config);
+            break;
+          case 'tile':
+            layerData = loadTileLayer(config);
             break;
         }
         loadedLayers[layerId] = layerData;
@@ -1624,7 +1646,7 @@ function buildPanel() {
         item.appendChild(format);
         items.appendChild(item);
 
-        if (layer.type === 'geotiff') {
+        if (layer.type === 'geotiff' || layer.type === 'tile') {
           const opacityControl = document.createElement('div');
           opacityControl.className = 'opacity-control';
           opacityControl.style.display = 'none';
