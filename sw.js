@@ -1,4 +1,5 @@
-const CACHE = 'overworld-v1';
+const APP_CACHE = 'overworld-app-v2';
+const DATA_CACHE = 'overworld-data-v1';
 
 // App shell + CDN libraries to pre-cache on install
 const PRECACHE = [
@@ -29,11 +30,18 @@ const NETWORK_ONLY_PREFIXES = [
   'https://c.basemaps.cartocdn.com',
   'https://nominatim.openstreetmap.org',
   'https://api.openrouteservice.org',
+  'https://geo.dot.gov',
 ];
+
+// Same-origin paths under /data/ are heavy data files — cache separately and persistently
+function isDataFile(url) {
+  const path = new URL(url).pathname;
+  return path.includes('/data/');
+}
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(PRECACHE))
+    caches.open(APP_CACHE).then(cache => cache.addAll(PRECACHE))
   );
   self.skipWaiting();
 });
@@ -41,32 +49,59 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter(k => k.startsWith('overworld-app-') && k !== APP_CACHE)
+          .map(k => caches.delete(k))
+      )
     )
   );
   self.clients.claim();
 });
+
+// Layer config JSON files — always fetch fresh so new layers appear immediately
+function isLayerConfig(url) {
+  const path = new URL(url).pathname;
+  return path.includes('/layers/') && path.endsWith('.json');
+}
 
 self.addEventListener('fetch', event => {
   const url = event.request.url;
 
   // Always use network for tiles and external APIs
   if (NETWORK_ONLY_PREFIXES.some(p => url.startsWith(p))) {
-    return; // fall through to browser default
+    return;
   }
+
+  // Network-first for layer configs: always get the latest, fall back to cache offline
+  if (isLayerConfig(url)) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.ok && event.request.method === 'GET') {
+            const clone = response.clone();
+            caches.open(APP_CACHE).then(cache => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  const cacheName = isDataFile(url) ? DATA_CACHE : APP_CACHE;
 
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
       return fetch(event.request).then(response => {
-        // Cache successful GET responses for same-origin and CDN assets
         if (
           response.ok &&
           event.request.method === 'GET' &&
           (url.startsWith(self.location.origin) || url.startsWith('https://unpkg.com'))
         ) {
           const clone = response.clone();
-          caches.open(CACHE).then(cache => cache.put(event.request, clone));
+          caches.open(cacheName).then(cache => cache.put(event.request, clone));
         }
         return response;
       });
