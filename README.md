@@ -1,10 +1,14 @@
-Overworld is a web app for viewing map data, including points, routes, regions, and raster overlays.
+Overworld is a web app for viewing all conceivable types of 2D world map data (including georeferenced raster overlays).
 
-It supports a variety of geodata formats, with a preference for geojson.
+It can display points, routes, regions, tileserver data, and static raster overlays.
+
+It can show current user location, search for locations by address or business name, and do basic routing.
+
+It supports a variety of base layers including [cyclOSM](https://www.cyclosm.org), and multiple geodata formats, with a preference for geojson.
 
 It can render georeferenced tif files, which can easily be created at https://mapwarper.net/ (upload, rectify, export).
 
-Data sources are defined with a simple json file. There is no capability to upload or edit data within the app.
+Data sources are defined with simple json files. There is no capability to upload or edit data within the app.
 
 ![screenshot](screenshot.png)
 
@@ -37,6 +41,7 @@ Examples:
 - qgis
 - https://github.com/qgis/qwc2-demo-app
 - https://github.com/NASA-AMMOS/MMGIS
+- https://www.offline-maps.net/
 
 - https://docs.mapstore.geosolutionsgroup.com/en/latest/ - not sure if it supports general uploads
 - https://terria.io/plans - expensive
