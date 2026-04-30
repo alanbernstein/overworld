@@ -1439,6 +1439,62 @@ function initPanelSections() {
   }
 }
 
+// Return the nearest Link Rail station feature to the given coordinates
+async function nearestLinkRailStation(lat, lng) {
+  const resp = await fetch('data/seattle/seattle-link-rail-stations.geojson');
+  const geojson = await resp.json();
+  let nearest = null, minDist = Infinity;
+  for (const feature of geojson.features) {
+    const [fLng, fLat] = feature.geometry.coordinates;
+    const d = Math.hypot(fLat - lat, fLng - lng);
+    if (d < minDist) { minDist = d; nearest = feature; }
+  }
+  return nearest;
+}
+
+// Hybrid mode: bike route from nearest Link Rail station to destination
+async function routeHybrid(destLat, destLng) {
+  if (!ORS_API_KEY) { setStatus('ORS_API_KEY not configured'); return; }
+  setStatus('Finding nearest Link Rail station…');
+  if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+
+  try {
+    const station = await nearestLinkRailStation(destLat, destLng);
+    const [stationLng, stationLat] = station.geometry.coordinates;
+    const stationName = station.properties.name;
+
+    setStatus(`Routing from ${stationName}…`);
+    const resp = await fetch(
+      'https://api.openrouteservice.org/v2/directions/cycling-regular/geojson',
+      {
+        method: 'POST',
+        headers: { 'Authorization': ORS_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coordinates: [[stationLng, stationLat], [destLng, destLat]] })
+      }
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const geojson = await resp.json();
+
+    const routeLine = L.geoJSON(geojson, { style: { color: ROUTE_COLOR, weight: 4, opacity: 0.8 } });
+    const stationMarker = L.circleMarker([stationLat, stationLng], {
+      radius: 7, color: ROUTE_COLOR, fillColor: '#fff', fillOpacity: 1, weight: 2
+    }).bindTooltip(stationName, { permanent: false });
+    routeLayer = L.layerGroup([routeLine, stationMarker]).addTo(map);
+    map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+
+    const summary = geojson.features[0]?.properties?.summary;
+    if (summary) {
+      const km = (summary.distance / 1000).toFixed(1);
+      const mins = Math.round(summary.duration / 60);
+      setStatus(`${stationName} → dest: ${km} km · ${mins} min by bike`);
+    } else {
+      setStatus(`Bike from ${stationName}`);
+    }
+  } catch (err) {
+    setStatus(`Hybrid routing failed: ${err.message}`);
+  }
+}
+
 // Route from current location to dest using the given ORS profile
 async function routeTo(destLat, destLng, profile = 'cycling-regular') {
   if (!userLatLng) {
@@ -1518,6 +1574,17 @@ function setDestination(lat, lng, label) {
     modeBtns.push(btn);
     dirRow.appendChild(btn);
   }
+  const hybridBtn = document.createElement('button');
+  hybridBtn.textContent = 'hybrid';
+  hybridBtn.title = 'Bike route from nearest Link Rail station';
+  hybridBtn.style.cssText = btnStyle;
+  hybridBtn.onclick = () => {
+    modeBtns.forEach(b => b.style.outline = '');
+    hybridBtn.style.outline = `2px solid ${ROUTE_COLOR}`;
+    routeHybrid(lat, lng);
+  };
+  modeBtns.push(hybridBtn);
+  dirRow.appendChild(hybridBtn);
   popupEl.appendChild(nameEl);
   popupEl.appendChild(dirRow);
 
