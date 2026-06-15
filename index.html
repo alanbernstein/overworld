@@ -1552,9 +1552,6 @@ function setDestination(lat, lng, label) {
   nameEl.style.marginBottom = '6px';
   const dirRow = document.createElement('div');
   dirRow.style.cssText = 'display:flex;align-items:center;gap:4px';
-  const dirLabel = document.createElement('span');
-  dirLabel.textContent = 'Directions:';
-  dirRow.appendChild(dirLabel);
   const btnStyle = 'font-size:11px;padding:2px 7px;cursor:pointer;'
     + 'font-family:inherit;background:#2563eb;color:white;border:none;border-radius:4px';
   const modeBtns = [];
@@ -1575,7 +1572,7 @@ function setDestination(lat, lng, label) {
     dirRow.appendChild(btn);
   }
   const hybridBtn = document.createElement('button');
-  hybridBtn.textContent = 'hybrid';
+  hybridBtn.textContent = 'link*';
   hybridBtn.title = 'Bike route from nearest Link Rail station';
   hybridBtn.style.cssText = btnStyle;
   hybridBtn.onclick = () => {
