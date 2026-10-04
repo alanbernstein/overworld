@@ -1,0 +1,12 @@
+{
+  "roots": [
+    "data/local/",
+    "data/sync/",
+    "data/samples/"
+  ],
+  "layer_sets": [
+    "layers/example.json",
+    "data/sync/layers/seattle.json"
+  ],
+  "hide_unavailable": false
+}

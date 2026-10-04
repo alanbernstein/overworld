@@ -2,7 +2,11 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <script>if (location.protocol !== 'https:') location.replace('https://' + location.hostname + ':8443' + location.pathname + location.search);</script>
+  <script>
+    // geolocation needs a secure context; localhost already is one, so local dev stays on http
+    if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname))
+      location.replace('https://' + location.hostname + ':8443' + location.pathname + location.search + location.hash);
+  </script>
   <title>Overworld</title>
   <link rel="icon" href="favicon.png">
   <link rel="manifest" href="manifest.json">
@@ -175,6 +179,15 @@
       cursor: pointer;
       font-size: 12px;
       line-height: 1.2;
+    }
+
+    .layer-item.unavailable {
+      opacity: 0.45;
+    }
+
+    .layer-item.unavailable label,
+    .layer-item.unavailable input[type="checkbox"] {
+      cursor: default;
     }
 
     .layer-item .format {
@@ -487,8 +500,60 @@
 </div>
 
 <script>
-// Layer configuration loaded from layers.json
+// Layer configuration loaded from the layer sets named in config.json
 let LAYERS = {};  // Will be populated on load
+
+// --- Data roots ---
+// Layer configs name files by logical path (e.g. "seattle/streets.geojson"); the
+// file itself can live in any of several roots: committed samples, a synced
+// folder, a large-file folder on one machine, or a web server. config.json is
+// per machine and gitignored; see config.example.json and the README.
+//
+// A root is either a URL string, whose _files.json listing (written by
+// tools/index-data.py) says which files it holds — no listing means the root is
+// absent on this machine — or {url, indexed: false}, which is assumed to hold
+// anything not found in an indexed root.
+const DEFAULT_APP_CONFIG = {
+  roots: ['data/samples/', { url: 'data/', indexed: false }],
+  layer_sets: null,           // null: read layers/index.json as before
+  hide_unavailable: false,
+};
+let APP_CONFIG = DEFAULT_APP_CONFIG;
+let DATA_ROOTS = [];          // [{ url, files: Set | null }]
+
+async function fetchJSON(url) {
+  try {
+    const r = await fetch(url);
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function loadAppConfig() {
+  const cfg = await fetchJSON('config.json');
+  APP_CONFIG = { ...DEFAULT_APP_CONFIG, ...(cfg || {}) };
+
+  DATA_ROOTS = (await Promise.all(APP_CONFIG.roots.map(async root => {
+    const url = typeof root === 'string' ? root : root.url;
+    const base = url.endsWith('/') ? url : url + '/';
+    if (typeof root !== 'string' && root.indexed === false) return { url: base, files: null };
+    const listing = await fetchJSON(base + '_files.json');
+    return listing ? { url: base, files: new Set(listing) } : null;
+  }))).filter(Boolean);
+
+  if (!APP_CONFIG.layer_sets) {
+    const names = await fetchJSON('layers/index.json') || [];
+    APP_CONFIG.layer_sets = names.map(f => `layers/${f}`);
+  }
+}
+
+// Logical data path -> URL, or null if no root on this machine has it
+function resolveDataFile(path) {
+  const hit = DATA_ROOTS.find(r => r.files && r.files.has(path))
+           || DATA_ROOTS.find(r => r.files === null);
+  return hit ? hit.url + path : null;
+}
 
 // Top-level display names keyed by data/ subdirectory name
 const TOP_LEVEL_NAMES = {
@@ -561,10 +626,15 @@ function parseLayersConfig(rawLayers) {
     if (!organized[topName]) organized[topName] = {};
     if (!organized[topName][subName]) organized[topName][subName] = [];
 
+    const url = isTileUrl ? file : resolveDataFile(file);
+    if (!url && APP_CONFIG.hide_unavailable) continue;
+
     organized[topName][subName].push({
       id,
       name: entry.name,
-      file: isTileUrl ? file : 'data/' + file,
+      file: url,
+      path: isTileUrl ? null : file,
+      available: !!url,
       type,
       source_url: entry.source_url || null,
       style_by: entry.style_by || null,
@@ -1370,7 +1440,7 @@ async function applyHash() {
     for (const layerId of params.l.split(',')) {
       const config = layerConfigs[layerId];
       const checkbox = layerCheckboxes[layerId];
-      if (config && checkbox && !checkbox.checked) {
+      if (config && checkbox && !checkbox.checked && !checkbox.disabled) {
         checkbox.checked = true;
         await toggleLayer(config, checkbox);
       }
@@ -1626,6 +1696,11 @@ function buildPanel() {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = `layer-${layer.id}`;
+        if (!layer.available) {
+          checkbox.disabled = true;
+          item.classList.add('unavailable');
+          item.title = `${layer.path} is not in any data root on this machine`;
+        }
         checkbox.onchange = () => toggleLayer(layer, checkbox);
         layerCheckboxes[layer.id] = checkbox;
 
@@ -1709,18 +1784,18 @@ map.on('contextmenu', e => {
   setDestination(lat, lng, label);
 });
 
-// Initialize - load all layer files listed in layers/index.json
+// Initialize - load config.json, the data root listings, then every layer set
 async function init() {
   try {
     setStatus('Loading layer catalog...');
-    const indexResponse = await fetch('layers/index.json');
-    const layerFiles = await indexResponse.json();
+    await loadAppConfig();
 
-    const rawLayers = (await Promise.all(
-      layerFiles.map(file =>
-        fetch(`layers/${file}`).then(r => r.json())
-      )
-    )).flat();
+    const sets = await Promise.all(APP_CONFIG.layer_sets.map(async url => {
+      const set = await fetchJSON(url);
+      if (!set) console.warn(`Layer set not found: ${url}`);
+      return set || [];
+    }));
+    const rawLayers = sets.flat();
 
     LAYERS = parseLayersConfig(rawLayers);
     buildPanel();
@@ -1728,7 +1803,8 @@ async function init() {
     initPanelSections();
     initGeocoder();
     await applyHash();
-    setStatus('Ready');
+    const missing = Object.values(layerConfigs).filter(c => !c.available).length;
+    setStatus(missing ? `Ready — ${missing} layer${missing > 1 ? 's' : ''} not on this machine` : 'Ready');
   } catch (err) {
     console.error('Failed to load layer catalog:', err);
     setStatus(`Error loading layer catalog: ${err.message}`);
