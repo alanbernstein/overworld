@@ -33,7 +33,7 @@ const NETWORK_ONLY_PREFIXES = [
   'https://geo.dot.gov',
 ];
 
-// Same-origin paths under /data/ are heavy data files — cache separately and persistently
+// Same-origin paths under /data/ are heavy data files — cached separately so they work offline
 function isDataFile(url) {
   const path = new URL(url).pathname;
   return path.includes('/data/');
@@ -84,6 +84,23 @@ self.addEventListener('fetch', event => {
           if (response.ok && event.request.method === 'GET') {
             const clone = response.clone();
             caches.open(APP_CACHE).then(cache => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Data files change when they're regenerated: revalidate with the server (a cheap
+  // 304 when unchanged) and use the cached copy only when offline
+  if (isDataFile(url) && url.startsWith(self.location.origin)) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-cache' })
+        .then(response => {
+          if (response.ok && event.request.method === 'GET') {
+            const clone = response.clone();
+            caches.open(DATA_CACHE).then(cache => cache.put(event.request, clone));
           }
           return response;
         })
