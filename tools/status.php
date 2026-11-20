@@ -95,6 +95,19 @@ function entry_file($e) {
     return null;
 }
 
+// 1234567 => "1.2 MB" (powers of 1000, as macOS Finder shows sizes)
+function human_size($bytes) {
+    if ($bytes < 1000) return "$bytes B";
+    $units = ['kB', 'MB', 'GB', 'TB'];
+    $v = $bytes;
+    foreach ($units as $u) {
+        $v /= 1000;
+        // decide on the rounded value, so 999,999 B is "1.0 MB", not "1000 kB"
+        $digits = round($v, 1) < 10 ? 1 : 0;
+        if (round($v, $digits) < 1000 || $u === 'TB') return number_format($v, $digits, '.', '') . " $u";
+    }
+}
+
 // A table cell is a string, or ['t' => text, 'u' => url] for a link.
 function cell_text($c) {
     return is_array($c) ? $c['t'] : (string)$c;
@@ -135,16 +148,22 @@ function check($roots, $sets, $notes) {
     $r = ['notes' => $notes, 'roots' => [], 'sets' => [], 'matched' => [], 'missing' => [],
           'unused' => [], 'ignored' => [], 'remote' => [], 'warnings' => []];
 
-    // which roots hold each logical path, in search order
+    // which roots hold each logical path, in search order, and each copy's size
     $where = [];
+    $sizes = [];             // root index => [logical path => bytes]
     foreach ($roots as $i => $root) {
         if (!is_dir($root['dir'])) {
             $r['notes'][] = "root {$root['label']}: not on this machine, skipped";
             continue;
         }
         $files = list_files($root['dir']);
-        $r['roots'][] = ['label' => $root['label'], 'files' => count($files)];
-        foreach ($files as $f) $where[$f][] = $i;
+        $bytes = 0;
+        foreach ($files as $f) {
+            $where[$f][] = $i;
+            $sizes[$i][$f] = (int)@filesize($root['dir'] . '/' . $f);
+            $bytes += $sizes[$i][$f];
+        }
+        $r['roots'][] = ['label' => $root['label'], 'files' => count($files), 'size' => human_size($bytes)];
     }
 
     // layer sets: explicit ones, then each root's layers/*.json (first root wins)
@@ -214,7 +233,8 @@ function check($roots, $sets, $notes) {
             $note = $also ? ['also in ' . implode(', ', $also)] : [];
             if (in_protected_folder($roots[$idx[0]]['dir'], $f['path']))
                 $note[] = 'password-protected folder: the app sees it only if that folder has its own _files.json';
-            $r['matched'][] = ['file' => $f['path'], 'root' => $roots[$idx[0]]['label']] + $L
+            $r['matched'][] = ['file' => $f['path'], 'size' => human_size($sizes[$idx[0]][$f['path']]),
+                               'root' => $roots[$idx[0]]['label']] + $L
                             + ['note' => implode('; ', $note)];
         } else {
             $r['missing'][] = $L + ['file' => $f['path']];
@@ -225,7 +245,7 @@ function check($roots, $sets, $notes) {
         if (isset($used[$f]) || isset($setPaths[$f])) continue;
         $labels = [];
         foreach ($idx as $i) $labels[] = $roots[$i]['label'];
-        $r['unused'][] = ['file' => $f, 'root' => implode(', ', $labels)];
+        $r['unused'][] = ['file' => $f, 'size' => human_size($sizes[$idx[0]][$f]), 'root' => implode(', ', $labels)];
     }
 
     foreach ($ids as $id => $names) {
@@ -249,11 +269,11 @@ function sections($r, $problems) {
     $layer = ['name' => 'layer name', 'tags' => 'tags', 'set' => 'layer set'];
     $s = [];
     if (!$problems) {
-        $s[] = ['Files used by layers', ['file' => 'file', 'root' => 'from root'] + $layer
+        $s[] = ['Files used by layers', ['file' => 'file', 'size' => 'size', 'root' => 'from root'] + $layer
                 + ['other' => 'other', 'note' => 'note'], $r['matched']];
     }
     $s[] = ['Layers whose file is missing', $layer + ['file' => 'file', 'other' => 'other'], $r['missing']];
-    $s[] = ['Files no layer uses', ['file' => 'file', 'root' => 'in root'], $r['unused']];
+    $s[] = ['Files no layer uses', ['file' => 'file', 'size' => 'size', 'root' => 'in root'], $r['unused']];
     $s[] = ['Layers the app ignores', $layer + ['why' => 'why', 'other' => 'other'], $r['ignored']];
     if (!$problems) {
         $s[] = ['Tile layers (remote, not checked)', $layer + ['url' => 'url', 'other' => 'other'], $r['remote']];
@@ -288,7 +308,7 @@ function used_columns($head, $rows) {
 
 function print_text($r, $problems) {
     foreach ($r['notes'] as $n) echo "note: $n\n";
-    foreach ($r['roots'] as $x) echo "root       {$x['label']}  ({$x['files']} files)\n";
+    foreach ($r['roots'] as $x) echo "root       {$x['label']}  ({$x['files']} files, {$x['size']})\n";
     foreach ($r['sets'] as $x) echo "layer set  {$x['label']}  ({$x['entries']} layers)\n";
     foreach (sections($r, $problems) as $sec) {
         list($title, $head, $rows) = $sec;
@@ -299,7 +319,10 @@ function print_text($r, $problems) {
         foreach ($rows as $row) foreach ($head as $k => $_) $w[$k] = max($w[$k], width(cell_text($row[$k])));
         $line = function ($cells) use ($w) {
             $out = '';
-            foreach ($w as $k => $n) $out .= $cells[$k] . str_repeat(' ', $n - width($cells[$k]) + 2);
+            foreach ($w as $k => $n) {
+                $pad = str_repeat(' ', $n - width($cells[$k]));
+                $out .= ($k === 'size' ? $pad . $cells[$k] : $cells[$k] . $pad) . '  ';
+            }
             return rtrim($out) . "\n";
         };
         echo $line($head);
@@ -321,13 +344,13 @@ function print_html($r, $problems, $web) {
          "body{font:14px system-ui,sans-serif;margin:16px;color:#111;background:#fff}",
          "table{border-collapse:collapse;margin:4px 0 20px}td,th{border:1px solid #ccc;padding:3px 8px;text-align:left;vertical-align:top}",
          "th{background:#f3f4f6}h2{font-size:16px;margin:20px 0 4px}.none,.when{color:#666}",
-         "td{overflow-wrap:anywhere}",
+         "td{overflow-wrap:anywhere}td.num{text-align:right;white-space:nowrap}",
          "@media(prefers-color-scheme:dark){body{color:#eee;background:#111}th{background:#222}td,th{border-color:#444}}",
          "</style><h1>Overworld status</h1><p class=when>", $h(date('Y-m-d H:i T')), '</p><p>', $h(summary($r)), '</p>';
     if ($web) echo $problems ? "<p><a href='?'>Show matched files too</a></p>" : "<p><a href='?problems'>Problems only</a></p>";
     echo '<ul>';
     foreach ($r['notes'] as $n) echo '<li>', $h($n), '</li>';
-    foreach ($r['roots'] as $x) echo '<li>root <code>', $h($x['label']), '</code> (', $x['files'], ' files)</li>';
+    foreach ($r['roots'] as $x) echo '<li>root <code>', $h($x['label']), '</code> (', $x['files'], ' files, ', $x['size'], ')</li>';
     foreach ($r['sets'] as $x) echo '<li>layer set <code>', $h($x['label']), '</code> (', $x['entries'], ' layers)</li>';
     echo '</ul>';
     if ($r['warnings']) {
@@ -347,7 +370,7 @@ function print_html($r, $problems, $web) {
             echo '<tr>';
             foreach ($head as $k => $_) {
                 $c = $row[$k];
-                echo '<td>', is_array($c)
+                echo $k === 'size' ? '<td class=num>' : '<td>', is_array($c)
                     ? "<a href='" . $h($c['u']) . "' target=_blank rel=noopener>" . $h($c['t']) . '</a>'
                     : $h($c), '</td>';
             }
