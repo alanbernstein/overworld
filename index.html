@@ -727,8 +727,15 @@ function getShade(baseHue, index) {
   return hslToHex(hue, saturation, lightness);
 }
 
-// Initialize map centered on Austin
-const map = L.map("map").setView([30.2672, -97.7431], 11);
+// Start at a fixed default view (Lake City, Seattle); the first location fix moves the
+// map to the user, unless they've already moved it or the URL asked for a region (r=).
+const DEFAULT_VIEW = { center: [47.72377, -122.30608], zoom: 13 };
+const map = L.map("map").setView(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom);
+
+let autoCenterOnUser = true;
+for (const ev of ['mousedown', 'touchstart', 'wheel', 'keydown']) {
+  map.getContainer().addEventListener(ev, () => { autoCenterOnUser = false; }, { once: true, passive: true });
+}
 
 // Base layer definitions keyed by URL-hash slug
 const BASE_LAYER_DEFS = {
@@ -1453,7 +1460,10 @@ async function applyHash() {
       }
     }
     const view = REGION_VIEWS[expandedKeys[0]];
-    if (view) map.setView(view.center, view.zoom);
+    if (view) {
+      map.setView(view.center, view.zoom);
+      autoCenterOnUser = false;
+    }
   }
 
   // Enable layers listed in l
@@ -1879,6 +1889,10 @@ if ('serviceWorker' in navigator) {
 
   function updatePosition(lat, lng, accuracy) {
     userLatLng = L.latLng(lat, lng);
+    if (autoCenterOnUser) {
+      autoCenterOnUser = false;   // only the first fix; after that the user drives the map
+      map.setView(userLatLng, 14);
+    }
     if (!locationMarker) {
       locationMarker = L.circleMarker([lat, lng], {
         radius: 8,
