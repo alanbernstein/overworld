@@ -1,0 +1,8 @@
+.DS_Store
+
+# per-machine: which data roots and layer sets this machine uses
+config.json
+
+# data roots are linked in per machine (tools/link-data.sh); only samples are committed
+data/*
+!data/samples/
