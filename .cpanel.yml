@@ -1,0 +1,6 @@
+# cPanel Git Version Control runs this on "Deploy HEAD Commit". cPanel only
+# looks for it at the repo root; the real work is in deploy/deploy.sh.
+---
+deployment:
+  tasks:
+    - /bin/bash deploy/deploy.sh

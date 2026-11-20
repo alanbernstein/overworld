@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <script>
-    // geolocation needs a secure context; localhost already is one, so local dev stays on http
+    // geolocation needs a secure context; localhost already is one, so local dev stays on http.
+    // A dev server on a nonstandard port has its https side on 8443; a real host uses the default port.
     if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname))
-      location.replace('https://' + location.hostname + ':8443' + location.pathname + location.search + location.hash);
+      location.replace('https://' + location.hostname + (location.port ? ':8443' : '') + location.pathname + location.search + location.hash);
   </script>
   <title>Overworld</title>
   <link rel="icon" href="favicon.png">
@@ -22,7 +23,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- KML support -->
-  <script src="https://unpkg.com/leaflet-kml/L.KML.js"></script>
+  <script src="https://unpkg.com/leaflet-kml@1.0.1/L.KML.js"></script>
 
   <!-- GPX support -->
   <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
@@ -32,8 +33,8 @@
 
   <!-- GeoTIFF support -->
   <script src="https://unpkg.com/geotiff@2.1.3/dist-browser/geotiff.js"></script>
-  <script src="https://unpkg.com/georaster/dist/georaster.browser.bundle.min.js"></script>
-  <script src="https://unpkg.com/georaster-layer-for-leaflet/dist/georaster-layer-for-leaflet.min.js"></script>
+  <script src="https://unpkg.com/georaster@1.6.0/dist/georaster.browser.bundle.min.js"></script>
+  <script src="https://unpkg.com/georaster-layer-for-leaflet@4.1.2/dist/georaster-layer-for-leaflet.min.js"></script>
 
   <style>
     * { box-sizing: border-box; }
@@ -770,8 +771,11 @@ const BASE_LAYER_DEFS = {
 const DEFAULT_BASE_LAYER = 'cyclosm';
 let activeBaseKey = DEFAULT_BASE_LAYER;
 
-// OpenRouteService API key — get a free key at https://openrouteservice.org
- const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImE5NjZhYWQ3MTdlZTQyYTI4ZWNjMmYwNzM3ZWI4Y2Y1IiwiaCI6Im11cm11cjY0In0=';
+// Routing goes through OpenRouteService (free key at https://openrouteservice.org).
+// config.json sets either "ors_proxy" (a server-side proxy holding the key, used when
+// hosted publicly; see deploy/api/route.php) or "ors_key" (sent from the browser, fine
+// for local use). The key is never committed.
+const ORS_DIRECT_URL = 'https://api.openrouteservice.org/v2/directions/';
 
 // Current user GPS position (kept in sync by the geolocation watcher below)
 let userLatLng = null;
@@ -1532,19 +1536,26 @@ async function routeTo(destLat, destLng, profile = 'cycling-regular') {
     setStatus('Enable location sharing to get directions');
     return;
   }
-  if (!ORS_API_KEY) {
-    setStatus('ORS_API_KEY not configured');
+  const { ors_proxy, ors_key } = APP_CONFIG;
+  if (!ors_proxy && !ors_key) {
+    setStatus('Routing not configured (ors_proxy or ors_key in config.json)');
     return;
   }
   setStatus('Getting directions…');
   if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
 
+  const url = ors_proxy
+    ? `${ors_proxy}?profile=${encodeURIComponent(profile)}`
+    : `${ORS_DIRECT_URL}${profile}/geojson`;
+  const headers = { 'Content-Type': 'application/json' };
+  if (!ors_proxy) headers['Authorization'] = ors_key;
+
   try {
     const resp = await fetch(
-      `https://api.openrouteservice.org/v2/directions/${profile}/geojson`,
+      url,
       {
         method: 'POST',
-        headers: { 'Authorization': ORS_API_KEY, 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           coordinates: [[userLatLng.lng, userLatLng.lat], [destLng, destLat]]
         })

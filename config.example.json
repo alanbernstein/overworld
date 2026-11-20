@@ -9,5 +9,6 @@
     "data/sync/layers/seattle.json"
   ],
   "hide_unavailable": false,
-  "carto_key": ""
+  "carto_key": "",
+  "ors_key": ""
 }

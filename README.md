@@ -91,3 +91,9 @@ Examples:
 - https://mapcarta.com/ - don't see a data upload option?
 
 https://old.reddit.com/r/gis/comments/zo7ee9/open_source_alternatives_to_arcgis_online/
+
+# Hosting
+
+To publish on a shared host (cPanel, no shell), see [deploy/README.md](deploy/README.md).
+Routing then goes through a small PHP proxy so the OpenRouteService key isn't public;
+locally, put the key in `config.json` as `ors_key`.

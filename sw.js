@@ -1,4 +1,4 @@
-const APP_CACHE = 'overworld-app-v3';
+const APP_CACHE = 'overworld-app-v4';
 const DATA_CACHE = 'overworld-data-v1';
 
 // App shell + CDN libraries to pre-cache on install
@@ -10,12 +10,12 @@ const PRECACHE = [
   './icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-  'https://unpkg.com/leaflet-kml/L.KML.js',
+  'https://unpkg.com/leaflet-kml@1.0.1/L.KML.js',
   'https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js',
   'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js',
   'https://unpkg.com/geotiff@2.1.3/dist-browser/geotiff.js',
-  'https://unpkg.com/georaster/dist/georaster.browser.bundle.min.js',
-  'https://unpkg.com/georaster-layer-for-leaflet/dist/georaster-layer-for-leaflet.min.js',
+  'https://unpkg.com/georaster@1.6.0/dist/georaster.browser.bundle.min.js',
+  'https://unpkg.com/georaster-layer-for-leaflet@4.1.2/dist/georaster-layer-for-leaflet.min.js',
 ];
 
 // URL prefixes that should always go to the network (tiles, geocoding, routing)
