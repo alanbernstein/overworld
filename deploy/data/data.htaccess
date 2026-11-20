@@ -1,4 +1,4 @@
-# Installed as public_html/data/.htaccess by deploy/deploy.sh.
+# Installed as public_html/overworld-data/.htaccess by deploy/deploy.sh.
 
 RewriteEngine On
 RewriteCond %{HTTPS} !=on

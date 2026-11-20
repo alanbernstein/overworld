@@ -12,7 +12,7 @@ two live in separate folders, so neither ever overwrites the other.
     config.json               from deploy/config.json
     api/route.php             routing proxy, holds the key server-side
     data/samples/             the committed example data
-  data/                     shared data folder: uploaded by hand
+  overworld-data/           shared data folder: uploaded by hand
     _files.php, .htaccess     written by deploy.sh; make every _files.json dynamic
     layers/seattle.json       layer sets kept with the data
     seattle/...
@@ -41,7 +41,7 @@ After changing app files, bump `APP_CACHE` in `sw.js` so installed copies update
 
 ## Deploying data
 
-Upload into `public_html/data/` with File Manager, keeping the `<region>/<file>`
+Upload into `public_html/overworld-data/` with File Manager, keeping the `<region>/<file>`
 layout the layer configs use. To upload many files, upload one zip and use
 File Manager's Extract.
 
@@ -56,14 +56,14 @@ where you live and ride.
 ## Private data
 
 cPanel → Directory Privacy can password-protect a folder such as
-`data/private/`. `_files.php` never lists a protected folder or reveals its
+`overworld-data/private/`. `_files.php` never lists a protected folder or reveals its
 contents, so give it a static listing: run `tools/index-data.py` on a local copy
-and upload the `_files.json` it writes. Then add `"/data/private/"` before `"/data/"` in
+and upload the `_files.json` it writes. Then add `"/overworld-data/private/"` before `"/overworld-data/"` in
 `roots` in `deploy/config.json`. Note that visitors are then asked for a
 password when the app loads.
 
 ## Testing the deploy script locally
 
 ```sh
-APP_DEST=/tmp/site/overworld DATA_DEST=/tmp/site/data deploy/deploy.sh
+APP_DEST=/tmp/site/overworld DATA_DEST=/tmp/site/overworld-data deploy/deploy.sh
 ```

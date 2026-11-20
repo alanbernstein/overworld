@@ -1,4 +1,4 @@
-const APP_CACHE = 'overworld-app-v4';
+const APP_CACHE = 'overworld-app-v5';
 const DATA_CACHE = 'overworld-data-v1';
 
 // App shell + CDN libraries to pre-cache on install
@@ -33,10 +33,11 @@ const NETWORK_ONLY_PREFIXES = [
   'https://geo.dot.gov',
 ];
 
-// Same-origin paths under /data/ are heavy data files — cached separately so they work offline
+// Same-origin paths under a data folder are heavy data files — cached separately so they
+// work offline: the app's own data/ (local roots, samples) and the host's shared /overworld-data/
 function isDataFile(url) {
   const path = new URL(url).pathname;
-  return path.includes('/data/');
+  return path.includes('/data/') || path.startsWith('/overworld-data/');
 }
 
 self.addEventListener('install', event => {

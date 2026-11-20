@@ -3,7 +3,7 @@
 # .cpanel.yml); see deploy/README.md for the whole process.
 #
 #   APP_DEST   where the app goes        (default ~/public_html/overworld)
-#   DATA_DEST  the shared data folder    (default ~/public_html/data)
+#   DATA_DEST  the shared data folder    (default ~/public_html/overworld-data)
 #
 # Files are copied, never deleted, so anything uploaded by hand stays put.
 # The data folder only gets the listing script and its .htaccess; data
@@ -12,7 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP_DEST=${APP_DEST:-$HOME/public_html/overworld}
-DATA_DEST=${DATA_DEST:-$HOME/public_html/data}
+DATA_DEST=${DATA_DEST:-$HOME/public_html/overworld-data}
 
 mkdir -p "$APP_DEST/layers" "$APP_DEST/api" "$APP_DEST/data/samples" "$DATA_DEST"
 
