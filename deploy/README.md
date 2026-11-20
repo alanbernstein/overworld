@@ -11,6 +11,7 @@ two live in separate folders, so neither ever overwrites the other.
   overworld/                the app: written by deploy.sh on every deploy
     config.json               from deploy/config.json
     api/route.php             routing proxy, holds the key server-side
+    status/index.php          status page: layer sets vs. data (password-protected)
     data/samples/             the committed example data
   overworld-data/           shared data folder: uploaded by hand
     _files.php, .htaccess     written by deploy.sh; make every _files.json dynamic
@@ -55,6 +56,18 @@ folder and upload them, rather than editing the server copy. Layers whose files 
 Only upload what should be public. In particular, never upload the Strava
 export zip or `.strava-bbox-cache.json`. Heatmaps and activity tracks show
 where you live and ride.
+
+## Checking data
+
+`https://<site>/overworld/status` compares the layer sets with the uploaded
+files: which file each layer uses, layers whose file is missing, files no layer
+uses, and entries the app ignores. Add `?problems` to see only those.
+
+It lists every file, including ones in protected folders, so it refuses to run
+until its folder is behind a password: cPanel → Directory Privacy →
+`public_html/overworld/status` → enable, and add a user. (Deploys don't touch
+the `.htaccess` that creates there.) The same report runs locally with
+`make status`, which writes `status.html`.
 
 ## Private data
 

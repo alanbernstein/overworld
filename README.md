@@ -52,6 +52,8 @@ python3 -m http.server                                  # serve; it follows the 
 
 Rerun `tools/index-data.py` after adding, removing or moving data files. Moving a file between roots needs no config change.
 
+To check layer sets against the data, run `make status`, which writes `status.html` (also at http://localhost:8000/status.html while `make serve` runs). It has a table of each data file and the layer that uses it, then the layers whose file is missing, the files no layer uses, and entries the app ignores. `make status ARGS=--problems` leaves out the matched table; `php tools/status.php --help` lists the options, such as checking other folders. The same page runs on the server at `/overworld/status`.
+
 # URL fragments
 
 State is encoded in the URL fragment and updates live, so links can be shared to a specific view.

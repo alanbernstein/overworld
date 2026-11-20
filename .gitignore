@@ -3,6 +3,10 @@
 # per-machine: which data roots and layer sets this machine uses
 /config.json
 
+# make status output
+/status.html
+/status.html.tmp
+
 # layer sets live with the data (each root's layers/), not in the repo; only the
 # example, which describes the committed samples, is committed
 /layers/*.json

@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 APP_DEST=${APP_DEST:-$HOME/public_html/overworld}
 DATA_DEST=${DATA_DEST:-$HOME/public_html/overworld-data}
 
-mkdir -p "$APP_DEST/layers" "$APP_DEST/api" "$APP_DEST/data/samples" "$DATA_DEST"
+mkdir -p "$APP_DEST/layers" "$APP_DEST/api" "$APP_DEST/data/samples" "$APP_DEST/status" "$DATA_DEST"
 
 # app shell
 cp index.html sw.js manifest.json favicon.png icon-*.png "$APP_DEST/"
@@ -29,5 +29,10 @@ cp -R data/samples/. "$APP_DEST/data/samples/"
 # shared data folder: dynamic _files.json
 cp deploy/data/_files.php "$DATA_DEST/"
 cp deploy/data/data.htaccess "$DATA_DEST/.htaccess"
+
+# status page at /overworld/status; it refuses to run until Directory Privacy protects
+# its folder (which keeps its own .htaccess there, untouched by deploys). Copied
+# without the #! line, which PHP 7.2 would print at the top of the page.
+sed '1{/^#!/d;}' tools/status.php > "$APP_DEST/status/index.php"
 
 echo "deployed $(git rev-parse --short HEAD 2>/dev/null || echo '?') to $APP_DEST"

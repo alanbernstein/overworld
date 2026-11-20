@@ -1,4 +1,4 @@
-const APP_CACHE = 'overworld-app-0.6';
+const APP_CACHE = 'overworld-app-0.7';
 const DATA_CACHE = 'overworld-data-v1';
 
 // App shell + CDN libraries to pre-cache on install
@@ -69,8 +69,16 @@ function isLayerConfig(url) {
     (path.includes('/layers/') || path.endsWith('/config.json') || path.endsWith('/_files.json'));
 }
 
+// The status page (status/ on the server, status.html locally) is a live report behind
+// a password: never cache it, and let the browser handle its login prompt
+function isStatusPage(url) {
+  return url.startsWith(self.registration.scope + 'status');
+}
+
 self.addEventListener('fetch', event => {
   const url = event.request.url;
+
+  if (isStatusPage(url)) return;
 
   // Always use network for tiles and external APIs
   if (NETWORK_ONLY_PREFIXES.some(p => url.startsWith(p))) {
