@@ -35,6 +35,7 @@ Each machine has its own `config.json` (gitignored; start from `config.example.j
 - `roots` are searched in order. A root is available when its `_files.json` listing is reachable, so a root that isn't on this machine is simply skipped. A root can also be a URL, e.g. a web server holding the same `<region>/<file>` layout.
 - `layer_sets` are the layer config files to load.
 - Layers whose file isn't in any root are greyed out, or hidden with `hide_unavailable`.
+- `carto_key` is your CARTO basemaps API key (free for non-commercial use: https://carto.com/basemaps/apikey). Without it the CARTO base layers show an "API KEY REQUIRED" placeholder.
 
 With no `config.json` the app behaves as before: layer sets come from `layers/index.json` and files from `data/`.
 

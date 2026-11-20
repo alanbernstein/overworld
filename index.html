@@ -548,6 +548,23 @@ async function loadAppConfig() {
   }
 }
 
+// CARTO basemaps need an API key (free for non-commercial use, carto.com/basemaps/apikey).
+// It lives in the per-machine config.json as "carto_key", so it stays out of the repo.
+// Without one, CARTO serves an "API KEY REQUIRED" placeholder tile.
+function applyCartoKey() {
+  const key = APP_CONFIG.carto_key;
+  if (!key) {
+    console.warn('No carto_key in config.json; CARTO basemaps will show a placeholder');
+    return;
+  }
+  for (const { layer } of Object.values(BASE_LAYER_DEFS)) {
+    if ('key' in layer.options) {
+      layer.options.key = encodeURIComponent(key);
+      layer.redraw();
+    }
+  }
+}
+
 // Logical data path -> URL, or null if no root on this machine has it
 function resolveDataFile(path) {
   const hit = DATA_ROOTS.find(r => r.files && r.files.has(path))
@@ -724,15 +741,15 @@ const BASE_LAYER_DEFS = {
   'positron': {
     label: 'CartoDB Positron',
     layer: L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
+      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key={key}',
+      { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO', key: '' }
     )
   },
   'voyager': {
     label: 'CartoDB Voyager',
     layer: L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-      { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
+      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key={key}',
+      { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO', key: '' }
     )
   },
   'osm': {
@@ -745,8 +762,8 @@ const BASE_LAYER_DEFS = {
   'dark': {
     label: 'CartoDB Dark',
     layer: L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO' }
+      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={key}',
+      { maxZoom: 20, attribution: '&copy; OpenStreetMap &copy; CARTO', key: '' }
     )
   }
 };
@@ -1789,6 +1806,7 @@ async function init() {
   try {
     setStatus('Loading layer catalog...');
     await loadAppConfig();
+    applyCartoKey();
 
     const sets = await Promise.all(APP_CONFIG.layer_sets.map(async url => {
       const set = await fetchJSON(url);

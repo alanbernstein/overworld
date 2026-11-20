@@ -8,5 +8,6 @@
     "layers/example.json",
     "data/sync/layers/seattle.json"
   ],
-  "hide_unavailable": false
+  "hide_unavailable": false,
+  "carto_key": ""
 }
