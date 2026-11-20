@@ -27,13 +27,14 @@ Each machine has its own `config.json` (gitignored; start from `config.example.j
 ```json
 {
   "roots": ["data/local/", "data/sync/", "data/samples/"],
-  "layer_sets": ["layers/example.json", "data/sync/layers/seattle.json"],
+  "layer_sets": ["layers/example.json"],
   "hide_unavailable": false
 }
 ```
 
 - `roots` are searched in order. A root is available when its `_files.json` listing is reachable, so a root that isn't on this machine is simply skipped. A root can also be a URL, e.g. a web server holding the same `<region>/<file>` layout.
-- `layer_sets` are the layer config files to load.
+- Layer sets (the layer config files) kept with the data are loaded automatically: every `layers/*.json` in a root, e.g. `data/sync/layers/seattle.json`. Like data files, a layer set in more than one root loads from the first. Keep one copy, in the synced root, so machines don't drift apart.
+- `layer_sets` lists any other layer sets to load, such as the committed `layers/example.json` (which describes the samples). The repo's `layers/` holds only that example; other layer sets there are gitignored.
 - Layers whose file isn't in any root are greyed out, or hidden with `hide_unavailable`.
 - `carto_key` is your CARTO basemaps API key (free for non-commercial use: https://carto.com/basemaps/apikey). Without it the CARTO base layers show an "API KEY REQUIRED" placeholder.
 

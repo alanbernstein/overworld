@@ -3,6 +3,12 @@
 # per-machine: which data roots and layer sets this machine uses
 /config.json
 
+# layer sets live with the data (each root's layers/), not in the repo; only the
+# example, which describes the committed samples, is committed
+/layers/*.json
+!/layers/example.json
+!/layers/index.json
+
 # data roots are linked in per machine (tools/link-data.sh); only samples are committed
 data/*
 !data/samples/

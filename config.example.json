@@ -5,8 +5,7 @@
     "data/samples/"
   ],
   "layer_sets": [
-    "layers/example.json",
-    "data/sync/layers/seattle.json"
+    "layers/example.json"
   ],
   "hide_unavailable": false,
   "carto_key": "",

@@ -547,6 +547,24 @@ async function loadAppConfig() {
     const names = await fetchJSON('layers/index.json') || [];
     APP_CONFIG.layer_sets = names.map(f => `layers/${f}`);
   }
+
+  // Layer sets kept with the data are found automatically: every layers/*.json in an
+  // indexed root's listing. Like data files, a path in more than one root loads from the
+  // first. Explicit layer_sets still load too (e.g. the committed example).
+  const discovered = new Map();
+  for (const root of DATA_ROOTS) {
+    if (!root.files) continue;
+    for (const f of root.files) {
+      if (/^layers\/[^/]+\.json$/.test(f) && !discovered.has(f)) discovered.set(f, root.url + f);
+    }
+  }
+  const abs = u => new URL(u, location.href).href;
+  const sets = [...APP_CONFIG.layer_sets];
+  const seen = new Set(sets.map(abs));
+  for (const url of discovered.values()) {
+    if (!seen.has(abs(url))) { seen.add(abs(url)); sets.push(url); }
+  }
+  APP_CONFIG.layer_sets = sets;
 }
 
 // CARTO basemaps need an API key (free for non-commercial use, carto.com/basemaps/apikey).

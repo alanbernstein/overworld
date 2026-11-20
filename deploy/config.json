@@ -4,8 +4,7 @@
     "data/samples/"
   ],
   "layer_sets": [
-    "layers/example.json",
-    "/overworld-data/layers/seattle.json"
+    "layers/example.json"
   ],
   "hide_unavailable": true,
   "carto_key": "",

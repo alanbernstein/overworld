@@ -37,7 +37,7 @@ two live in separate folders, so neither ever overwrites the other.
 That runs `.cpanel.yml`, which runs `deploy/deploy.sh`. It only copies files, so
 anything removed from the repo has to be deleted on the server by hand.
 
-After changing app files, bump `APP_CACHE` in `sw.js` so installed copies update.
+After changing app files, change `APP_CACHE` in `sw.js` (any new name) so installed copies update.
 
 ## Deploying data
 
@@ -46,7 +46,10 @@ layout the layer configs use. To upload many files, upload one zip and use
 File Manager's Extract.
 
 There is no `_files.json` to maintain: `_files.php` lists the folder whenever
-the app asks. Layers whose files aren't uploaded are hidden
+the app asks. Layer sets go in `overworld-data/layers/` and are loaded
+automatically, so a new region is just its folder plus `layers/<region>.json`,
+with no config change or deploy. Edit layer sets in the local synced data
+folder and upload them, rather than editing the server copy. Layers whose files aren't uploaded are hidden
 (`hide_unavailable` in `deploy/config.json`).
 
 Only upload what should be public. In particular, never upload the Strava
