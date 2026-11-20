@@ -95,6 +95,41 @@ function entry_file($e) {
     return null;
 }
 
+// A table cell is a string, or ['t' => text, 'u' => url] for a link.
+function cell_text($c) {
+    return is_array($c) ? $c['t'] : (string)$c;
+}
+
+// The columns every layer table shares: name (linked to source_url when it is a web
+// address), tags, layer set, and the entry's other keys. $f is the entry's file key,
+// shown in its own column, so it is left out of "other".
+function layer_cells($e, $label, $set, $f) {
+    $src = isset($e['source_url']) && is_string($e['source_url']) ? trim($e['source_url']) : '';
+    $isUrl = (bool)preg_match('#^https?://#i', $src);
+    $other = [];
+    if ($src !== '' && !$isUrl) $other[] = "source: $src";
+    foreach ($e as $k => $v) {
+        if (in_array($k, ['name', 'source_url', 'tags'], true) || ($f && $k === $f['key'])) continue;
+        $other[] = "$k: " . (is_scalar($v) ? (is_bool($v) ? ($v ? 'true' : 'false') : (string)$v)
+                                           : json_encode($v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
+    $tags = isset($e['tags']) ? (is_array($e['tags']) ? implode(',', $e['tags']) : (string)$e['tags']) : '';
+    return ['name' => $isUrl ? ['t' => $label, 'u' => $src] : $label,
+            'tags' => implode(', ', array_filter(array_map('trim', explode(',', $tags)), 'strlen')),
+            'set' => $set,
+            'other' => implode('; ', $other)];
+}
+
+function sort_rows(&$rows, $keys) {
+    usort($rows, function ($a, $b) use ($keys) {
+        foreach ($keys as $k) {
+            $c = strcmp(cell_text($a[$k]), cell_text($b[$k]));
+            if ($c) return $c;
+        }
+        return 0;
+    });
+}
+
 // $roots: [['label', 'dir']] in search order. $sets: [['label', 'path']] explicit layer sets.
 function check($roots, $sets, $notes) {
     $r = ['notes' => $notes, 'roots' => [], 'sets' => [], 'matched' => [], 'missing' => [],
@@ -146,24 +181,28 @@ function check($roots, $sets, $notes) {
     $byFile = [];            // logical path => [names]
     foreach ($entries as $x) {
         $e = $x['e'];
-        if (!is_array($e)) { $r['ignored'][] = ["(entry #{$x['n']})", $x['set'], 'not an object']; continue; }
+        if (!is_array($e)) {
+            $r['ignored'][] = ['name' => "(entry #{$x['n']})", 'tags' => '', 'set' => $x['set'],
+                               'other' => '', 'why' => 'not an object'];
+            continue;
+        }
         $name = isset($e['name']) && is_string($e['name']) ? $e['name'] : '';
-        $label = $name !== '' ? $name : "(entry #{$x['n']}, no name)";
         $f = entry_file($e);
+        $L = layer_cells($e, $name !== '' ? $name : "(entry #{$x['n']}, no name)", $x['set'], $f);
         if ($f === null) {
-            $r['ignored'][] = [$label, $x['set'], 'no file key'];
+            $r['ignored'][] = $L + ['why' => 'no file key'];
             continue;
         }
         if ($f['key'] === 'tile_url') {
-            if ($name !== '') $r['remote'][] = [$name, $x['set'], $f['path']];
-            else $r['ignored'][] = [$label, $x['set'], 'no name'];
+            if ($name !== '') $r['remote'][] = $L + ['url' => $f['path']];
+            else $r['ignored'][] = $L + ['why' => 'no name'];
             continue;
         }
         $used[$f['path']] = true;   // a file is "used" even by an entry the app skips
         $ext = strtolower(pathinfo($f['path'], PATHINFO_EXTENSION));
-        if ($name === '') { $r['ignored'][] = [$label, $x['set'], 'no name']; continue; }
+        if ($name === '') { $r['ignored'][] = $L + ['why' => 'no name']; continue; }
         if ($f['key'] === 'file' && !in_array($ext, BY_EXT, true)) {
-            $r['ignored'][] = [$name, $x['set'], "unsupported file type .$ext ({$f['path']})"];
+            $r['ignored'][] = $L + ['why' => "unsupported file type .$ext ({$f['path']})"];
             continue;
         }
         $ids[layer_id($name)][] = "$name ({$x['set']})";
@@ -175,9 +214,10 @@ function check($roots, $sets, $notes) {
             $note = $also ? ['also in ' . implode(', ', $also)] : [];
             if (in_protected_folder($roots[$idx[0]]['dir'], $f['path']))
                 $note[] = 'password-protected folder: the app sees it only if that folder has its own _files.json';
-            $r['matched'][] = [$f['path'], $roots[$idx[0]]['label'], $name, $x['set'], implode('; ', $note)];
+            $r['matched'][] = ['file' => $f['path'], 'root' => $roots[$idx[0]]['label']] + $L
+                            + ['note' => implode('; ', $note)];
         } else {
-            $r['missing'][] = [$name, $x['set'], $f['path']];
+            $r['missing'][] = $L + ['file' => $f['path']];
         }
     }
 
@@ -185,7 +225,7 @@ function check($roots, $sets, $notes) {
         if (isset($used[$f]) || isset($setPaths[$f])) continue;
         $labels = [];
         foreach ($idx as $i) $labels[] = $roots[$i]['label'];
-        $r['unused'][] = [$f, implode(', ', $labels)];
+        $r['unused'][] = ['file' => $f, 'root' => implode(', ', $labels)];
     }
 
     foreach ($ids as $id => $names) {
@@ -196,23 +236,27 @@ function check($roots, $sets, $notes) {
         if (count($names) > 1) $r['warnings'][] = "$f is used by more than one layer: " . implode('; ', $names);
     }
 
-    sort($r['matched']);
-    sort($r['missing']);
+    sort_rows($r['matched'], ['file', 'name']);
+    sort_rows($r['missing'], ['name']);
+    sort_rows($r['remote'], ['name']);
     return $r;
 }
 
 // ---------------------------------------------------------------- output
 
+// [title, [column key => heading], rows]
 function sections($r, $problems) {
+    $layer = ['name' => 'layer name', 'tags' => 'tags', 'set' => 'layer set'];
     $s = [];
     if (!$problems) {
-        $s[] = ['Files used by layers', ['file', 'from root', 'layer', 'layer set', 'note'], $r['matched']];
+        $s[] = ['Files used by layers', ['file' => 'file', 'root' => 'from root'] + $layer
+                + ['other' => 'other', 'note' => 'note'], $r['matched']];
     }
-    $s[] = ['Layers whose file is missing', ['layer', 'layer set', 'file'], $r['missing']];
-    $s[] = ['Files no layer uses', ['file', 'in root'], $r['unused']];
-    $s[] = ['Layers the app ignores', ['layer', 'layer set', 'why'], $r['ignored']];
+    $s[] = ['Layers whose file is missing', $layer + ['file' => 'file', 'other' => 'other'], $r['missing']];
+    $s[] = ['Files no layer uses', ['file' => 'file', 'root' => 'in root'], $r['unused']];
+    $s[] = ['Layers the app ignores', $layer + ['why' => 'why', 'other' => 'other'], $r['ignored']];
     if (!$problems) {
-        $s[] = ['Tile layers (remote, not checked)', ['layer', 'layer set', 'url'], $r['remote']];
+        $s[] = ['Tile layers (remote, not checked)', $layer + ['url' => 'url', 'other' => 'other'], $r['remote']];
     }
     return $s;
 }
@@ -229,6 +273,19 @@ function width($s) {
     return function_exists('mb_strlen') ? mb_strlen($s, 'UTF-8') : strlen($s);
 }
 
+// The columns of $head that have a value in at least one row (always the first).
+function used_columns($head, $rows) {
+    $out = [];
+    $first = true;
+    foreach ($head as $k => $label) {
+        $keep = $first;
+        foreach ($rows as $row) if (!$keep && cell_text($row[$k]) !== '') $keep = true;
+        if ($keep) $out[$k] = $label;
+        $first = false;
+    }
+    return $out;
+}
+
 function print_text($r, $problems) {
     foreach ($r['notes'] as $n) echo "note: $n\n";
     foreach ($r['roots'] as $x) echo "root       {$x['label']}  ({$x['files']} files)\n";
@@ -237,16 +294,17 @@ function print_text($r, $problems) {
         list($title, $head, $rows) = $sec;
         echo "\n== $title (" . count($rows) . ")\n";
         if (!$rows) continue;
+        $head = used_columns($head, $rows);
         $w = array_map('width', $head);
-        foreach ($rows as $row) foreach ($row as $i => $c) $w[$i] = max($w[$i], width($c));
+        foreach ($rows as $row) foreach ($head as $k => $_) $w[$k] = max($w[$k], width(cell_text($row[$k])));
         $line = function ($cells) use ($w) {
             $out = '';
-            foreach ($cells as $i => $c) $out .= $c . str_repeat(' ', $w[$i] - width($c) + 2);
+            foreach ($w as $k => $n) $out .= $cells[$k] . str_repeat(' ', $n - width($cells[$k]) + 2);
             return rtrim($out) . "\n";
         };
         echo $line($head);
         echo $line(array_map(function ($n) { return str_repeat('-', $n); }, $w));
-        foreach ($rows as $row) echo $line($row);
+        foreach ($rows as $row) echo $line(array_map('cell_text', $row));
     }
     if ($r['warnings']) {
         echo "\n== Warnings (" . count($r['warnings']) . ")\n";
@@ -281,12 +339,18 @@ function print_html($r, $problems, $web) {
         list($title, $head, $rows) = $sec;
         echo '<h2>', $h($title), ' (', count($rows), ')</h2>';
         if (!$rows) { echo "<p class=none>none</p>"; continue; }
+        $head = used_columns($head, $rows);
         echo '<table><tr>';
         foreach ($head as $c) echo '<th>', $h($c), '</th>';
         echo '</tr>';
         foreach ($rows as $row) {
             echo '<tr>';
-            foreach ($row as $c) echo '<td>', $h($c), '</td>';
+            foreach ($head as $k => $_) {
+                $c = $row[$k];
+                echo '<td>', is_array($c)
+                    ? "<a href='" . $h($c['u']) . "' target=_blank rel=noopener>" . $h($c['t']) . '</a>'
+                    : $h($c), '</td>';
+            }
             echo '</tr>';
         }
         echo '</table>';
