@@ -108,7 +108,12 @@ function human_size($bytes) {
     }
 }
 
-// A table cell is a string, or ['t' => text, 'u' => url] for a link.
+// A table cell is a string, or an array: ['t' => text, 'u' => url] for a link, or
+// ['t' => text, 'b' => bytes] for a size, which sorts by the byte count.
+function size_cell($bytes) {
+    return ['t' => human_size($bytes), 'b' => $bytes];
+}
+
 function cell_text($c) {
     return is_array($c) ? $c['t'] : (string)$c;
 }
@@ -233,7 +238,7 @@ function check($roots, $sets, $notes) {
             $note = $also ? ['also in ' . implode(', ', $also)] : [];
             if (in_protected_folder($roots[$idx[0]]['dir'], $f['path']))
                 $note[] = 'password-protected folder: the app sees it only if that folder has its own _files.json';
-            $r['matched'][] = ['file' => $f['path'], 'size' => human_size($sizes[$idx[0]][$f['path']]),
+            $r['matched'][] = ['file' => $f['path'], 'size' => size_cell($sizes[$idx[0]][$f['path']]),
                                'root' => $roots[$idx[0]]['label']] + $L
                             + ['note' => implode('; ', $note)];
         } else {
@@ -245,7 +250,7 @@ function check($roots, $sets, $notes) {
         if (isset($used[$f]) || isset($setPaths[$f])) continue;
         $labels = [];
         foreach ($idx as $i) $labels[] = $roots[$i]['label'];
-        $r['unused'][] = ['file' => $f, 'size' => human_size($sizes[$idx[0]][$f]), 'root' => implode(', ', $labels)];
+        $r['unused'][] = ['file' => $f, 'size' => size_cell($sizes[$idx[0]][$f]), 'root' => implode(', ', $labels)];
     }
 
     foreach ($ids as $id => $names) {
@@ -345,6 +350,8 @@ function print_html($r, $problems, $web) {
          "table{border-collapse:collapse;margin:4px 0 20px}td,th{border:1px solid #ccc;padding:3px 8px;text-align:left;vertical-align:top}",
          "th{background:#f3f4f6}h2{font-size:16px;margin:20px 0 4px}.none,.when{color:#666}",
          "td{overflow-wrap:anywhere}td.num{text-align:right;white-space:nowrap}",
+         "th{cursor:pointer;user-select:none;white-space:nowrap}th:hover{text-decoration:underline}",
+         "th[aria-sort=ascending]::after{content:' \\25B2'}th[aria-sort=descending]::after{content:' \\25BC'}",
          "@media(prefers-color-scheme:dark){body{color:#eee;background:#111}th{background:#222}td,th{border-color:#444}}",
          "</style><h1>Overworld status</h1><p class=when>", $h(date('Y-m-d H:i T')), '</p><p>', $h(summary($r)), '</p>';
     if ($web) echo $problems ? "<p><a href='?'>Show matched files too</a></p>" : "<p><a href='?problems'>Problems only</a></p>";
@@ -363,22 +370,59 @@ function print_html($r, $problems, $web) {
         echo '<h2>', $h($title), ' (', count($rows), ')</h2>';
         if (!$rows) { echo "<p class=none>none</p>"; continue; }
         $head = used_columns($head, $rows);
-        echo '<table><tr>';
-        foreach ($head as $c) echo '<th>', $h($c), '</th>';
-        echo '</tr>';
+        // explicit thead/tbody, so the sort script moves only the body rows
+        echo '<table><thead><tr>';
+        foreach ($head as $k => $c) echo $k === 'size' ? '<th data-numeric>' : '<th>', $h($c), '</th>';
+        echo '</tr></thead><tbody>';
         foreach ($rows as $row) {
             echo '<tr>';
             foreach ($head as $k => $_) {
                 $c = $row[$k];
-                echo $k === 'size' ? '<td class=num>' : '<td>', is_array($c)
-                    ? "<a href='" . $h($c['u']) . "' target=_blank rel=noopener>" . $h($c['t']) . '</a>'
-                    : $h($c), '</td>';
+                if (isset($c['u'])) {
+                    echo "<td><a href='", $h($c['u']), "' target=_blank rel=noopener>", $h($c['t']), '</a></td>';
+                } elseif (isset($c['b'])) {
+                    echo '<td class=num data-sort="', $c['b'], '">', $h($c['t']), '</td>';
+                } else {
+                    echo '<td>', $h(cell_text($c)), '</td>';
+                }
             }
             echo '</tr>';
         }
-        echo '</table>';
+        echo '</tbody></table>';
     }
+    echo SORT_SCRIPT;
 }
+
+// Click a column heading to sort its table; click again to reverse. Sizes sort by
+// their byte count (data-sort) and start largest first; text sorts naturally
+// ("file2" before "file10"). Inline, so the saved status.html sorts offline too.
+const SORT_SCRIPT = <<<'JS'
+<script>
+document.querySelectorAll('table').forEach(table => {
+  const heads = [...table.tHead.rows[0].cells];
+  heads.forEach((th, col) => {
+    th.tabIndex = 0;
+    const sort = () => {
+      const numeric = th.hasAttribute('data-numeric');
+      const dir = th.getAttribute('aria-sort') === (numeric ? 'descending' : 'ascending')
+        ? (numeric ? 'ascending' : 'descending') : (numeric ? 'descending' : 'ascending');
+      const key = td => numeric ? Number(td.dataset.sort) : td.textContent.trim();
+      const rows = [...table.tBodies[0].rows];
+      rows.sort((a, b) => {
+        const x = key(a.cells[col]), y = key(b.cells[col]);
+        const c = numeric ? x - y : x.localeCompare(y, undefined, { numeric: true, sensitivity: 'base' });
+        return dir === 'ascending' ? c : -c;
+      });
+      table.tBodies[0].append(...rows);
+      heads.forEach(h => h.removeAttribute('aria-sort'));
+      th.setAttribute('aria-sort', dir);
+    };
+    th.addEventListener('click', sort);
+    th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sort(); } });
+  });
+});
+</script>
+JS;
 
 // ---------------------------------------------------------------- setup
 
