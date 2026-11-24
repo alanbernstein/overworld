@@ -2,6 +2,7 @@
 
 # per-machine: which data roots and layer sets this machine uses
 /config.json
+/config.local.json
 
 # make status output
 /status.html

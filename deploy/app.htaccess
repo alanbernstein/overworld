@@ -12,7 +12,7 @@ AddType application/manifest+json .webmanifest
 
 # The service worker and configs must never be served stale
 <IfModule mod_headers.c>
-  <FilesMatch "^(sw\.js|config\.json|index\.html)$">
+  <FilesMatch "^(sw\.js|config(\.local)?\.json|index\.html)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
 </IfModule>

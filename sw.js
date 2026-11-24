@@ -1,4 +1,4 @@
-const APP_CACHE = 'overworld-app-0.8';
+const APP_CACHE = 'overworld-app-0.9';
 const DATA_CACHE = 'overworld-data-v1';
 
 // App shell + CDN libraries to pre-cache on install
@@ -61,12 +61,12 @@ self.addEventListener('activate', event => {
 });
 
 // Config JSON — always fetch fresh so new layers and data files appear immediately:
-// config.json, layer sets (any */layers/*.json, including ones in a data root),
+// config.json and config.local.json, layer sets (any */layers/*.json, including ones in a data root),
 // and the _files.json listing of each data root
 function isLayerConfig(url) {
   const path = new URL(url).pathname;
   return path.endsWith('.json') &&
-    (path.includes('/layers/') || path.endsWith('/config.json') || path.endsWith('/_files.json'));
+    (path.includes('/layers/') || path.endsWith('/config.json') || path.endsWith('/config.local.json') || path.endsWith('/_files.json'));
 }
 
 // The status page (status/ on the server, status.html locally) is a live report behind

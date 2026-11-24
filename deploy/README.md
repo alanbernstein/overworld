@@ -9,7 +9,8 @@ two live in separate folders, so neither ever overwrites the other.
 ~/secrets/ors-key.txt       OpenRouteService key, outside the website
 ~/public_html/
   overworld/                the app: written by deploy.sh on every deploy
-    config.json               from deploy/config.json
+    config.json               from deploy/config.json (overwritten by every deploy)
+    config.local.json         optional, made by hand: server-only overrides
     api/route.php             routing proxy, holds the key server-side
     status/index.php          status page: layer sets vs. data (password-protected)
     data/samples/             the committed example data
@@ -37,6 +38,13 @@ two live in separate folders, so neither ever overwrites the other.
 
 That runs `.cpanel.yml`, which runs `deploy/deploy.sh`. It only copies files, so
 anything removed from the repo has to be deleted on the server by hand.
+
+Each deploy overwrites `overworld/config.json` with `deploy/config.json`. For a
+setting that should differ on the server, don't edit `config.json` there:
+create `overworld/config.local.json` holding just the keys to change, e.g.
+`{"carto_key": "..."}`. The app loads it after `config.json` and its keys win
+(whole values: a `roots` list replaces the default list). Deploys never touch it.
+It's served publicly like `config.json`, so keep secrets out of it.
 
 After changing app files, change `APP_CACHE` in `sw.js` (any new name) so installed copies update.
 

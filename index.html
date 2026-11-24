@@ -532,8 +532,10 @@ async function fetchJSON(url) {
 }
 
 async function loadAppConfig() {
-  const cfg = await fetchJSON('config.json');
-  APP_CONFIG = { ...DEFAULT_APP_CONFIG, ...(cfg || {}) };
+  // config.local.json (optional, never deployed) overrides config.json key by key,
+  // so settings edited on the server survive deploys.
+  const [cfg, localCfg] = await Promise.all([fetchJSON('config.json'), fetchJSON('config.local.json')]);
+  APP_CONFIG = { ...DEFAULT_APP_CONFIG, ...(cfg || {}), ...(localCfg || {}) };
 
   DATA_ROOTS = (await Promise.all(APP_CONFIG.roots.map(async root => {
     const url = typeof root === 'string' ? root : root.url;
