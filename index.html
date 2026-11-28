@@ -516,7 +516,7 @@ let LAYERS = {};  // Will be populated on load
 // anything not found in an indexed root.
 const DEFAULT_APP_CONFIG = {
   roots: ['data/samples/', { url: 'data/', indexed: false }],
-  layer_sets: null,           // null: read layers/index.json as before
+  layer_sets: [],             // extra layer sets; each root's layers/*.json load anyway
   hide_unavailable: false,
 };
 let APP_CONFIG = DEFAULT_APP_CONFIG;
@@ -532,10 +532,8 @@ async function fetchJSON(url) {
 }
 
 async function loadAppConfig() {
-  // config.local.json (optional, never deployed) overrides config.json key by key,
-  // so settings edited on the server survive deploys.
-  const [cfg, localCfg] = await Promise.all([fetchJSON('config.json'), fetchJSON('config.local.json')]);
-  APP_CONFIG = { ...DEFAULT_APP_CONFIG, ...(cfg || {}), ...(localCfg || {}) };
+  const cfg = await fetchJSON('config.json');
+  APP_CONFIG = { ...DEFAULT_APP_CONFIG, ...(cfg || {}) };
 
   DATA_ROOTS = (await Promise.all(APP_CONFIG.roots.map(async root => {
     const url = typeof root === 'string' ? root : root.url;
@@ -545,14 +543,10 @@ async function loadAppConfig() {
     return listing ? { url: base, files: new Set(listing) } : null;
   }))).filter(Boolean);
 
-  if (!APP_CONFIG.layer_sets) {
-    const names = await fetchJSON('layers/index.json') || [];
-    APP_CONFIG.layer_sets = names.map(f => `layers/${f}`);
-  }
-
   // Layer sets kept with the data are found automatically: every layers/*.json in an
   // indexed root's listing. Like data files, a path in more than one root loads from the
-  // first. Explicit layer_sets still load too (e.g. the committed example).
+  // first (the committed samples root carries layers/example.json this way). Explicit
+  // layer_sets load too.
   const discovered = new Map();
   for (const root of DATA_ROOTS) {
     if (!root.files) continue;
@@ -561,7 +555,7 @@ async function loadAppConfig() {
     }
   }
   const abs = u => new URL(u, location.href).href;
-  const sets = [...APP_CONFIG.layer_sets];
+  const sets = [...(APP_CONFIG.layer_sets || [])];
   const seen = new Set(sets.map(abs));
   for (const url of discovered.values()) {
     if (!seen.has(abs(url))) { seen.add(abs(url)); sets.push(url); }

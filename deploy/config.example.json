@@ -1,10 +1,6 @@
 {
   "roots": [
-    "/overworld-data/",
-    "data/samples/"
-  ],
-  "layer_sets": [
-    "layers/example.json"
+    "/overworld-data/"
   ],
   "hide_unavailable": true,
   "carto_key": "",

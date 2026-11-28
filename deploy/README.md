@@ -9,11 +9,10 @@ two live in separate folders, so neither ever overwrites the other.
 ~/secrets/ors-key.txt       OpenRouteService key, outside the website
 ~/public_html/
   overworld/                the app: written by deploy.sh on every deploy
-    config.json               from deploy/config.json (overwritten by every deploy)
-    config.local.json         optional, made by hand: server-only overrides
+    config.json               this server's settings: made from deploy/config.example.json
+                              on the first deploy, then edited here (deploys never touch it)
     api/route.php             routing proxy, holds the key server-side
     status/index.php          status page: layer sets vs. data (password-protected)
-    data/samples/             the committed example data
   overworld-data/           shared data folder: uploaded by hand
     _files.php, .htaccess     written by deploy.sh; make every _files.json dynamic
     layers/seattle.json       layer sets kept with the data
@@ -37,14 +36,15 @@ two live in separate folders, so neither ever overwrites the other.
    **Update from Remote**, then **Deploy HEAD Commit**.
 
 That runs `.cpanel.yml`, which runs `deploy/deploy.sh`. It only copies files, so
-anything removed from the repo has to be deleted on the server by hand.
+anything removed from the repo has to be deleted on the server by hand (apart
+from the few retired files listed in `deploy.sh`, which it removes itself).
 
-Each deploy overwrites `overworld/config.json` with `deploy/config.json`. For a
-setting that should differ on the server, don't edit `config.json` there:
-create `overworld/config.local.json` holding just the keys to change, e.g.
-`{"carto_key": "..."}`. The app loads it after `config.json` and its keys win
-(whole values: a `roots` list replaces the default list). Deploys never touch it.
-It's served publicly like `config.json`, so keep secrets out of it.
+`overworld/config.json` is the server's own settings file. The first deploy
+creates it from `deploy/config.example.json`; after that, deploys never touch
+it, so edit it on the server (File Manager → Edit), e.g. to fill in `carto_key`.
+When an update adds a setting, the app's built-in default applies until you add
+it; compare with `deploy/config.example.json` now and then. It's served publicly,
+so keep secrets out of it (the routing key lives in `~/secrets`).
 
 After changing app files, change `APP_CACHE` in `sw.js` (any new name) so installed copies update.
 
@@ -59,7 +59,7 @@ the app asks. Layer sets go in `overworld-data/layers/` and are loaded
 automatically, so a new region is just its folder plus `layers/<region>.json`,
 with no config change or deploy. Edit layer sets in the local synced data
 folder and upload them, rather than editing the server copy. Layers whose files aren't uploaded are hidden
-(`hide_unavailable` in `deploy/config.json`).
+(`hide_unavailable` in the server's `config.json`).
 
 Only upload what should be public. In particular, never upload the Strava
 export zip or `.strava-bbox-cache.json`. Heatmaps and activity tracks show
@@ -72,8 +72,7 @@ files and lists what it finds by severity: **errors** (a layer won't appear:
 its file is missing, or the app ignores the entry; each with a fix), then
 **warnings** (likely mistakes, such as the same layer defined in two layer
 sets), then **information** (data folders, layer sets, and collapsed tables of
-matched files, unused files and tile layers). Like the app, it reads
-`config.local.json` over `config.json`.
+matched files, unused files and tile layers).
 
 It lists every file, including ones in protected folders, so it refuses to run
 until its folder is behind a password: cPanel → Directory Privacy →
@@ -87,7 +86,7 @@ cPanel → Directory Privacy can password-protect a folder such as
 `overworld-data/private/`. `_files.php` never lists a protected folder or reveals its
 contents, so give it a static listing: run `tools/index-data.py` on a local copy
 and upload the `_files.json` it writes. Then add `"/overworld-data/private/"` before `"/overworld-data/"` in
-`roots` in `deploy/config.json`. Note that visitors are then asked for a
+`roots` in the server's `overworld/config.json`. Note that visitors are then asked for a
 password when the app loads.
 
 ## Testing the deploy script locally

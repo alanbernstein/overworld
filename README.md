@@ -18,7 +18,7 @@ Layer configs name data files by a logical path, `<region>/<file>` (e.g. `seattl
 
 | root | holds | lives |
 |---|---|---|
-| `data/samples/` | a few small example files | committed |
+| `data/samples/` | a few small example files, and `layers/example.json` describing them | committed |
 | `data/sync/` | small and medium files, and your real layer configs | a synced folder, linked in |
 | `data/local/` | large files (>100 MB) | one machine only, linked in |
 
@@ -27,18 +27,17 @@ Each machine has its own `config.json` (gitignored; start from `config.example.j
 ```json
 {
   "roots": ["data/local/", "data/sync/", "data/samples/"],
-  "layer_sets": ["layers/example.json"],
   "hide_unavailable": false
 }
 ```
 
 - `roots` are searched in order. A root is available when its `_files.json` listing is reachable, so a root that isn't on this machine is simply skipped. A root can also be a URL, e.g. a web server holding the same `<region>/<file>` layout.
-- Layer sets (the layer config files) kept with the data are loaded automatically: every `layers/*.json` in a root, e.g. `data/sync/layers/seattle.json`. Like data files, a layer set in more than one root loads from the first. Keep one copy, in the synced root, so machines don't drift apart.
-- `layer_sets` lists any other layer sets to load, such as the committed `layers/example.json` (which describes the samples). The repo's `layers/` holds only that example; other layer sets there are gitignored.
+- Layer sets (the layer config files) live with the data and load automatically: every `layers/*.json` in a root, e.g. `data/sync/layers/seattle.json`, or the samples' `data/samples/layers/example.json`. Like data files, a layer set in more than one root loads from the first. Keep one copy, in the synced root, so machines don't drift apart. Leave `data/samples/` out of `roots` to hide the example layers.
+- `layer_sets` (optional) lists extra layer set URLs to load from elsewhere.
 - Layers whose file isn't in any root are greyed out, or hidden with `hide_unavailable`.
 - `carto_key` is your CARTO basemaps API key (free for non-commercial use: https://carto.com/basemaps/apikey). Without it the CARTO base layers show an "API KEY REQUIRED" placeholder.
 
-With no `config.json` the app behaves as before: layer sets come from `layers/index.json` and files from `data/`.
+With no `config.json` the app uses `data/samples/` (so a fresh checkout shows the example layers), then looks in `data/` for anything else.
 
 Setting up a machine:
 
@@ -52,7 +51,7 @@ python3 -m http.server                                  # serve; it follows the 
 
 Rerun `tools/index-data.py` after adding, removing or moving data files. Moving a file between roots needs no config change.
 
-To check layer sets against the data, run `make status`, which writes `status.html` (also at http://localhost:8000/status.html while `make serve` runs). It has a table of each data file and the layer that uses it, then the layers whose file is missing, the files no layer uses, and entries the app ignores. `make status ARGS=--problems` leaves out the matched table; `php tools/status.php --help` lists the options, such as checking other folders. The same page runs on the server at `/overworld/status`.
+To check layer sets against the data, run `make status`, which writes `status.html` (also at http://localhost:8000/status.html while `make serve` runs). It lists findings by severity: errors (layers whose file is missing, entries the app ignores), warnings (such as the same layer defined twice), then information, including collapsed tables of matched and unused files. `php tools/status.php --help` lists the options, such as checking other folders. The same page runs on the server at `/overworld/status`.
 
 # URL fragments
 

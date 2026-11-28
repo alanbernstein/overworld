@@ -10,7 +10,7 @@
 //   make status                                    status.html from ./config.json
 //   php tools/status.php > status.html             the same
 //   php tools/status.php DIR [DIR ...]             these data folders, in order
-//   php tools/status.php --config deploy/config.json --docroot ~/site
+//   php tools/status.php --config ~/site/overworld/config.json --docroot ~/site
 //
 //   --config FILE    read roots and layer_sets from an app config.json; relative paths
 //                    are relative to its folder, /paths need --docroot, URLs are skipped
@@ -26,7 +26,6 @@
 // so it is at /overworld/status. It reads the app's config.json and only runs behind
 // a password (cPanel Directory Privacy on overworld/status), since it lists every file,
 // including ones in protected folders. Add ?problems to leave out the informational tables.
-// Like the app, it reads config.local.json over config.json when there is one.
 
 // Must match parseLayersConfig in index.html: the first key present names the file.
 const FILE_KEYS = ['tile_url', 'file_geojson', 'file_kml', 'file_csv', 'file_gpx',
@@ -537,22 +536,11 @@ JS;
 
 // ---------------------------------------------------------------- setup
 
-// Roots and layer sets from an app config.json, with config.local.json beside it
-// overriding it key by key, as the app does.
+// Roots and layer sets from an app config.json.
 function from_config($file, $docroot, &$roots, &$sets, &$notes) {
     $cfg = json_decode(@file_get_contents($file), true);
     if (!is_array($cfg)) return "can't read config $file";
     $base = dirname(realpath($file));
-    $local = "$base/config.local.json";
-    if (is_file($local)) {
-        $over = json_decode(file_get_contents($local), true);
-        if (is_array($over)) {
-            $cfg = array_merge($cfg, $over);
-            $notes[] = 'config.local.json overrides: ' . implode(', ', array_keys($over));
-        } else {
-            $notes[] = "config.local.json: not valid JSON, ignored (the app ignores it too)";
-        }
-    }
     foreach (isset($cfg['roots']) ? $cfg['roots'] : [] as $root) {
         $p = is_array($root) ? (isset($root['url']) ? $root['url'] : '') : $root;
         list($dir, $why) = resolve_config_path($p, $base, $docroot);

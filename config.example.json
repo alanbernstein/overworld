@@ -4,9 +4,6 @@
     "data/sync/",
     "data/samples/"
   ],
-  "layer_sets": [
-    "layers/example.json"
-  ],
   "hide_unavailable": false,
   "carto_key": "",
   "ors_key": ""
