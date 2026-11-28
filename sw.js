@@ -1,13 +1,13 @@
-const APP_CACHE = 'overworld-app-0.12';
+const APP_CACHE = 'overworld-app-0.13';
 const DATA_CACHE = 'overworld-data-v1';
 
 // App shell + CDN libraries to pre-cache on install
 const PRECACHE = [
   './',
-  './manifest.json',
-  './favicon.png',
-  './icon-192.png',
-  './icon-512.png',
+  './assets/manifest.json',
+  './assets/favicon.png',
+  './assets/icon-192.png',
+  './assets/icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/leaflet-kml@1.0.1/L.KML.js',

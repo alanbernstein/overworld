@@ -23,6 +23,8 @@ RETIRED=("$APP_DEST/layers/example.json" "$APP_DEST/layers/index.json"
          "$APP_DEST/data/samples/_files.json"
          "$APP_DEST/data/samples/austin/LFL-from-littlefreelibrary.org-map.geojson"
          "$APP_DEST/data/samples/austin/aisd-schools-v12-202601.xml"
+         "$APP_DEST/manifest.json" "$APP_DEST/favicon.png" "$APP_DEST/icon-48.png" "$APP_DEST/icon-96.png"
+         "$APP_DEST/icon-192.png" "$APP_DEST/icon-512.png"   # moved to assets/
          "$APP_DEST/config.local.json"     # no longer read: move its keys into config.json first
          "$DATA_DEST/layers/example.json") # a copy of the samples' layer set
 
@@ -38,7 +40,9 @@ else
 fi
 
 # app shell
-cp index.html sw.js manifest.json favicon.png icon-*.png "$APP_DEST/"
+mkdir -p "$APP_DEST/assets"
+cp index.html sw.js "$APP_DEST/"
+cp assets/manifest.json assets/favicon.png assets/icon-*.png "$APP_DEST/assets/"
 cp deploy/app.htaccess "$APP_DEST/.htaccess"
 cp deploy/api/route.php "$APP_DEST/api/"
 

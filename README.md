@@ -10,7 +10,7 @@ It can render georeferenced tif files, which can easily be created at https://ma
 
 Data sources are defined with simple json files. There is no capability to upload or edit data within the app.
 
-![screenshot](screenshot.png)
+![screenshot](assets/screenshot.png)
 
 # Data files
 
