@@ -16,15 +16,17 @@
 //                    are relative to its folder, /paths need --docroot, URLs are skipped
 //   --docroot DIR    where /paths in a config point (the site's public_html)
 //   --layers FILE    also check this layer set (repeatable)
-//   --problems       leave out the table of matched files
+//   --problems       leave out the informational tables (matched files, tile layers)
 //   --text           plain-text tables instead of HTML
 //
-//   Exit status is 1 when a layer entry has no file or is one the app ignores.
+//   Findings are listed by severity: errors (a layer won't appear), warnings (likely
+//   mistakes), then information. Exit status is 1 when there is an error.
 //
 // On the server, deploy.sh installs this as public_html/overworld/status/index.php,
 // so it is at /overworld/status. It reads the app's config.json and only runs behind
 // a password (cPanel Directory Privacy on overworld/status), since it lists every file,
-// including ones in protected folders. Add ?problems to leave out matched files.
+// including ones in protected folders. Add ?problems to leave out the informational tables.
+// Like the app, it reads config.local.json over config.json when there is one.
 
 // Must match parseLayersConfig in index.html: the first key present names the file.
 const FILE_KEYS = ['tile_url', 'file_geojson', 'file_kml', 'file_csv', 'file_gpx',
@@ -150,15 +152,15 @@ function sort_rows(&$rows, $keys) {
 
 // $roots: [['label', 'dir']] in search order. $sets: [['label', 'path']] explicit layer sets.
 function check($roots, $sets, $notes) {
-    $r = ['notes' => $notes, 'roots' => [], 'sets' => [], 'matched' => [], 'missing' => [],
-          'unused' => [], 'ignored' => [], 'remote' => [], 'warnings' => []];
+    $r = ['roots' => [], 'sets' => [], 'matched' => [], 'missing' => [],
+          'unused' => [], 'ignored' => [], 'remote' => [], 'errors' => [], 'warnings' => [], 'info' => $notes];
 
     // which roots hold each logical path, in search order, and each copy's size
     $where = [];
     $sizes = [];             // root index => [logical path => bytes]
     foreach ($roots as $i => $root) {
         if (!is_dir($root['dir'])) {
-            $r['notes'][] = "root {$root['label']}: not on this machine, skipped";
+            $r['info'][] = "root {$root['label']}: not on this machine, skipped";
             continue;
         }
         $files = list_files($root['dir']);
@@ -179,19 +181,20 @@ function check($roots, $sets, $notes) {
     foreach ($where as $f => $idx) {
         if (preg_match('#^layers/[^/]+\.json$#', $f)) {
             $setPaths[$f] = true;
-            // found in a root: labelled by its logical path, which is unique (first root wins)
-            $all[] = ['label' => $f, 'path' => $roots[$idx[0]]['dir'] . '/' . $f];
+            // found in a root: labelled root + path, so a copy of an explicit set (say
+            // layers/example.json in both the app and a data folder) reads as a different file
+            $all[] = ['label' => $roots[$idx[0]]['label'] . $f, 'path' => $roots[$idx[0]]['dir'] . '/' . $f];
         }
     }
     $entries = [];
     foreach ($all as $s) {
         $real = realpath($s['path']);
-        if ($real === false) { $r['warnings'][] = "layer set {$s['label']}: not found"; continue; }
+        if ($real === false) { $r['errors'][] = "layer set {$s['label']}: not found"; continue; }
         if (isset($loaded[$real])) continue;
         $loaded[$real] = true;
         $data = json_decode(file_get_contents($real), true);
         if (!is_array($data) || ($data && array_keys($data) !== range(0, count($data) - 1))) {
-            $r['warnings'][] = "layer set {$s['label']}: not a JSON list of layers"
+            $r['errors'][] = "layer set {$s['label']}: not a JSON list of layers"
                 . (json_last_error() ? ' (' . json_last_error_msg() . ')' : '');
             continue;
         }
@@ -199,9 +202,13 @@ function check($roots, $sets, $notes) {
         foreach ($data as $n => $e) $entries[] = ['set' => $s['label'], 'n' => $n, 'e' => $e];
     }
 
+    // where a missing file should go: the first root on this machine
+    $home = null;
+    foreach ($roots as $i => $root) if (is_dir($root['dir'])) { $home = $i; break; }
+
     // match entries to files
     $used = [];              // logical path => true
-    $ids = [];               // layer id => [names with set]
+    $ids = [];               // layer id => [['name', 'set']]
     $byFile = [];            // logical path => [names]
     foreach ($entries as $x) {
         $e = $x['e'];
@@ -229,20 +236,25 @@ function check($roots, $sets, $notes) {
             $r['ignored'][] = $L + ['why' => "unsupported file type .$ext ({$f['path']})"];
             continue;
         }
-        $ids[layer_id($name)][] = "$name ({$x['set']})";
+        $ids[layer_id($name)][] = ['name' => $name, 'set' => $x['set']];
         $byFile[$f['path']][] = $name;
         if (isset($where[$f['path']])) {
             $idx = $where[$f['path']];
             $also = [];
             foreach (array_slice($idx, 1) as $i) $also[] = $roots[$i]['label'];
             $note = $also ? ['also in ' . implode(', ', $also)] : [];
-            if (in_protected_folder($roots[$idx[0]]['dir'], $f['path']))
-                $note[] = 'password-protected folder: the app sees it only if that folder has its own _files.json';
+            if (in_protected_folder($roots[$idx[0]]['dir'], $f['path'])) {
+                $note[] = 'password-protected folder';
+                $r['warnings'][] = "$name: {$f['path']} is in a password-protected folder; the app sees it "
+                    . 'only if that folder has its own _files.json (tools/index-data.py)';
+            }
             $r['matched'][] = ['file' => $f['path'], 'size' => size_cell($sizes[$idx[0]][$f['path']]),
                                'root' => $roots[$idx[0]]['label']] + $L
                             + ['note' => implode('; ', $note)];
         } else {
-            $r['missing'][] = $L + ['file' => $f['path']];
+            $dir = dirname($f['path']);
+            $up = ($home !== null ? $roots[$home]['label'] : '') . ($dir === '.' ? '' : "$dir/");
+            $r['missing'][] = $L + ['file' => $f['path'], 'fix' => "upload to $up (or fix the path)"];
         }
     }
 
@@ -254,11 +266,15 @@ function check($roots, $sets, $notes) {
     }
 
     foreach ($ids as $id => $names) {
-        if (count($names) > 1) $r['warnings'][] = "layer id \"$id\" is shared by: " . implode('; ', $names)
-            . ' (the app keeps only one; links with l= are ambiguous)';
+        if (count($names) > 1) $r['warnings'][] = "duplicate layer \"{$names[0]['name']}\": defined "
+            . count($names) . ' times, in ' . implode(', ', array_column($names, 'set'))
+            . " (id \"$id\"). The app keeps only one, and links with l= are ambiguous; remove the extra copies.";
     }
     foreach ($byFile as $f => $names) {
-        if (count($names) > 1) $r['warnings'][] = "$f is used by more than one layer: " . implode('; ', $names);
+        // the same file under different names is deliberate (e.g. one track file, several
+        // heatmap filters); the same name twice is a duplicate, reported above
+        if (count($names) > 1 && count(array_unique($names)) === count($names))
+            $r['info'][] = "$f is shared by " . count($names) . ' layers: ' . implode('; ', $names);
     }
 
     sort_rows($r['matched'], ['file', 'name']);
@@ -269,29 +285,43 @@ function check($roots, $sets, $notes) {
 
 // ---------------------------------------------------------------- output
 
-// [title, [column key => heading], rows]
-function sections($r, $problems) {
+const LEVELS = ['error' => 'Errors', 'warning' => 'Warnings', 'info' => 'Information'];
+
+// Message lists and tables, grouped by severity. A table is [title, [column key =>
+// heading], rows, note]; $problems leaves out the informational tables.
+function report($r, $problems) {
     $layer = ['name' => 'layer name', 'tags' => 'tags', 'set' => 'layer set'];
-    $s = [];
+    $info = [['Files no layer uses', ['file' => 'file', 'size' => 'size', 'root' => 'in root'], $r['unused'],
+              'not an error: leftovers, or files a layer will use later']];
     if (!$problems) {
-        $s[] = ['Files used by layers', ['file' => 'file', 'size' => 'size', 'root' => 'from root'] + $layer
-                + ['other' => 'other', 'note' => 'note'], $r['matched']];
+        $info[] = ['Files used by layers', ['file' => 'file', 'size' => 'size', 'root' => 'from root'] + $layer
+                   + ['other' => 'other', 'note' => 'note'], $r['matched'], ''];
+        $info[] = ['Tile layers (remote, not checked)', $layer + ['url' => 'url', 'other' => 'other'], $r['remote'], ''];
     }
-    $s[] = ['Layers whose file is missing', $layer + ['file' => 'file', 'other' => 'other'], $r['missing']];
-    $s[] = ['Files no layer uses', ['file' => 'file', 'size' => 'size', 'root' => 'in root'], $r['unused']];
-    $s[] = ['Layers the app ignores', $layer + ['why' => 'why', 'other' => 'other'], $r['ignored']];
-    if (!$problems) {
-        $s[] = ['Tile layers (remote, not checked)', $layer + ['url' => 'url', 'other' => 'other'], $r['remote']];
-    }
-    return $s;
+    return [
+        'error' => [$r['errors'], [
+            ['Layers whose file is missing', $layer + ['file' => 'file', 'fix' => 'fix', 'other' => 'other'],
+             $r['missing'], 'these layers show greyed out, or not at all when hide_unavailable is on'],
+            ['Layers the app ignores', $layer + ['why' => 'why', 'other' => 'other'], $r['ignored'],
+             'these entries never appear in the app'],
+        ]],
+        'warning' => [$r['warnings'], []],
+        'info' => [$r['info'], $info],
+    ];
+}
+
+// Number of findings at each level: messages plus table rows (info counts used files).
+function counts($r) {
+    return ['error' => count($r['errors']) + count($r['missing']) + count($r['ignored']),
+            'warning' => count($r['warnings']),
+            'ok' => count($r['matched']) + count($r['remote'])];
 }
 
 function summary($r) {
-    $n = function ($k, $one, $many) use ($r) { $c = count($r[$k]); return "$c " . ($c === 1 ? $one : $many); };
-    return implode(', ', [$n('matched', 'file used', 'files used'),
-                          $n('missing', 'layer missing its file', 'layers missing their file'),
-                          $n('unused', 'file unused', 'files unused'),
-                          $n('ignored', 'layer ignored', 'layers ignored')]);
+    $c = counts($r);
+    $p = function ($n, $one, $many) { return "$n " . ($n === 1 ? $one : $many); };
+    return implode(', ', [$p($c['error'], 'error', 'errors'), $p($c['warning'], 'warning', 'warnings'),
+                          $p($c['ok'], 'layer OK', 'layers OK'), $p(count($r['unused']), 'file unused', 'files unused')]);
 }
 
 function width($s) {
@@ -312,86 +342,167 @@ function used_columns($head, $rows) {
 }
 
 function print_text($r, $problems) {
-    foreach ($r['notes'] as $n) echo "note: $n\n";
+    $tag = ['error' => 'ERROR', 'warning' => 'WARN ', 'info' => 'info '];
+    echo summary($r), "\n";
     foreach ($r['roots'] as $x) echo "root       {$x['label']}  ({$x['files']} files, {$x['size']})\n";
     foreach ($r['sets'] as $x) echo "layer set  {$x['label']}  ({$x['entries']} layers)\n";
-    foreach (sections($r, $problems) as $sec) {
-        list($title, $head, $rows) = $sec;
-        echo "\n== $title (" . count($rows) . ")\n";
-        if (!$rows) continue;
-        $head = used_columns($head, $rows);
-        $w = array_map('width', $head);
-        foreach ($rows as $row) foreach ($head as $k => $_) $w[$k] = max($w[$k], width(cell_text($row[$k])));
-        $line = function ($cells) use ($w) {
-            $out = '';
-            foreach ($w as $k => $n) {
-                $pad = str_repeat(' ', $n - width($cells[$k]));
-                $out .= ($k === 'size' ? $pad . $cells[$k] : $cells[$k] . $pad) . '  ';
+    foreach (report($r, $problems) as $level => $group) {
+        list($messages, $tables) = $group;
+        foreach ($messages as $m) echo "{$tag[$level]}  $m\n";
+        foreach ($tables as $t) {
+            list($title, $head, $rows) = $t;
+            if (!$rows && $level !== 'info') continue;
+            echo "\n== ", $level === 'info' ? '' : strtoupper($level) . ': ', "$title (" . count($rows) . ")\n";
+            if (!$rows) continue;
+            $head = used_columns($head, $rows);
+            $w = array_map('width', $head);
+            foreach ($rows as $row) foreach ($head as $k => $_) $w[$k] = max($w[$k], width(cell_text($row[$k])));
+            $line = function ($cells) use ($w) {
+                $out = '';
+                foreach ($w as $k => $n) {
+                    $pad = str_repeat(' ', $n - width($cells[$k]));
+                    $out .= ($k === 'size' ? $pad . $cells[$k] : $cells[$k] . $pad) . '  ';
+                }
+                return rtrim($out) . "\n";
+            };
+            echo $line($head);
+            echo $line(array_map(function ($n) { return str_repeat('-', $n); }, $w));
+            foreach ($rows as $row) echo $line(array_map('cell_text', $row));
+        }
+        echo "\n";
+    }
+}
+
+function html_table($h, $head, $rows) {
+    $head = used_columns($head, $rows);
+    // explicit thead/tbody, so the sort script moves only the body rows
+    $out = '<div class=scroll><table><thead><tr>';
+    foreach ($head as $k => $c) $out .= ($k === 'size' ? '<th data-numeric>' : '<th>') . $h($c) . '</th>';
+    $out .= '</tr></thead><tbody>';
+    foreach ($rows as $row) {
+        $out .= '<tr>';
+        foreach ($head as $k => $_) {
+            $c = $row[$k];
+            if (isset($c['u'])) {
+                $out .= "<td><a href='" . $h($c['u']) . "' target=_blank rel=noopener>" . $h($c['t']) . '</a></td>';
+            } elseif (isset($c['b'])) {
+                $out .= '<td class=num data-sort="' . $c['b'] . '">' . $h($c['t']) . '</td>';
+            } else {
+                if (in_array($k, ['file', 'set', 'root', 'url'], true)) {
+                    // paths break after a slash rather than mid-name
+                    $out .= '<td class=mono>' . str_replace('/', '/<wbr>', $h(cell_text($c))) . '</td>';
+                } else {
+                    $out .= ($k === 'fix' ? '<td class=fix>' : '<td>') . $h(cell_text($c)) . '</td>';
+                }
             }
-            return rtrim($out) . "\n";
-        };
-        echo $line($head);
-        echo $line(array_map(function ($n) { return str_repeat('-', $n); }, $w));
-        foreach ($rows as $row) echo $line(array_map('cell_text', $row));
+        }
+        $out .= '</tr>';
     }
-    if ($r['warnings']) {
-        echo "\n== Warnings (" . count($r['warnings']) . ")\n";
-        foreach ($r['warnings'] as $wn) echo "- $wn\n";
-    }
-    echo "\n" . summary($r) . "\n";
+    return $out . '</tbody></table></div>';
 }
 
 // $web: served by the site, so the page can link to its ?problems variant
 function print_html($r, $problems, $web) {
     $h = function ($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); };
-    echo "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'>",
-         "<title>Overworld status</title><style>",
-         "body{font:14px system-ui,sans-serif;margin:16px;color:#111;background:#fff}",
-         "table{border-collapse:collapse;margin:4px 0 20px}td,th{border:1px solid #ccc;padding:3px 8px;text-align:left;vertical-align:top}",
-         "th{background:#f3f4f6}h2{font-size:16px;margin:20px 0 4px}.none,.when{color:#666}",
-         "td{overflow-wrap:anywhere}td.num{text-align:right;white-space:nowrap}",
-         "th{cursor:pointer;user-select:none;white-space:nowrap}th:hover{text-decoration:underline}",
-         "th[aria-sort=ascending]::after{content:' \\25B2'}th[aria-sort=descending]::after{content:' \\25BC'}",
-         "@media(prefers-color-scheme:dark){body{color:#eee;background:#111}th{background:#222}td,th{border-color:#444}}",
-         "</style><h1>Overworld status</h1><p class=when>", $h(date('Y-m-d H:i T')), '</p><p>', $h(summary($r)), '</p>';
-    if ($web) echo $problems ? "<p><a href='?'>Show matched files too</a></p>" : "<p><a href='?problems'>Problems only</a></p>";
-    echo '<ul>';
-    foreach ($r['notes'] as $n) echo '<li>', $h($n), '</li>';
-    foreach ($r['roots'] as $x) echo '<li>root <code>', $h($x['label']), '</code> (', $x['files'], ' files, ', $x['size'], ')</li>';
-    foreach ($r['sets'] as $x) echo '<li>layer set <code>', $h($x['label']), '</code> (', $x['entries'], ' layers)</li>';
-    echo '</ul>';
-    if ($r['warnings']) {
-        echo '<h2>Warnings (', count($r['warnings']), ')</h2><ul>';
-        foreach ($r['warnings'] as $wn) echo '<li>', $h($wn), '</li>';
-        echo '</ul>';
+    $c = counts($r);
+    $state = $c['error'] ? 'error' : ($c['warning'] ? 'warning' : 'ok');
+    $title = $c['error'] ? "{$c['error']} error" . ($c['error'] > 1 ? 's' : '')
+           : ($c['warning'] ? "{$c['warning']} warning" . ($c['warning'] > 1 ? 's' : '') : 'all OK');
+    echo "<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>",
+         '<title>', $h("Overworld status · $title"), '</title><style>', STATUS_CSS, '</style>',
+         "<header class=$state><h1>Overworld status</h1><div class=badges>";
+    foreach ([['error', 'error', 'errors'], ['warning', 'warning', 'warnings'], ['ok', 'layer OK', 'layers OK']] as $b) {
+        $n = $c[$b[0]];
+        echo "<span class='badge ", $b[0], $n ? '' : ' zero', "'>", $n, ' ', $n === 1 ? $b[1] : $b[2], '</span>';
     }
-    foreach (sections($r, $problems) as $sec) {
-        list($title, $head, $rows) = $sec;
-        echo '<h2>', $h($title), ' (', count($rows), ')</h2>';
-        if (!$rows) { echo "<p class=none>none</p>"; continue; }
-        $head = used_columns($head, $rows);
-        // explicit thead/tbody, so the sort script moves only the body rows
-        echo '<table><thead><tr>';
-        foreach ($head as $k => $c) echo $k === 'size' ? '<th data-numeric>' : '<th>', $h($c), '</th>';
-        echo '</tr></thead><tbody>';
-        foreach ($rows as $row) {
-            echo '<tr>';
-            foreach ($head as $k => $_) {
-                $c = $row[$k];
-                if (isset($c['u'])) {
-                    echo "<td><a href='", $h($c['u']), "' target=_blank rel=noopener>", $h($c['t']), '</a></td>';
-                } elseif (isset($c['b'])) {
-                    echo '<td class=num data-sort="', $c['b'], '">', $h($c['t']), '</td>';
-                } else {
-                    echo '<td>', $h(cell_text($c)), '</td>';
-                }
-            }
-            echo '</tr>';
+    echo '<span class=when>', $h(date('Y-m-d H:i T')), '</span>';
+    if ($web) echo $problems ? " <a href='?'>show everything</a>" : '';
+    echo '</div></header><main>';
+
+    foreach (report($r, $problems) as $level => $group) {
+        list($messages, $tables) = $group;
+        $tables_with_rows = array_filter($tables, function ($t) { return $t[2]; });
+        echo "<section class='level $level'><h2><span class=chip>", LEVELS[$level], '</span>';
+        if ($level !== 'info') {
+            $n = $level === 'error' ? $c['error'] : $c['warning'];
+            echo ' <span class=count>', $n ?: 'none', '</span>';
         }
-        echo '</tbody></table>';
+        echo '</h2>';
+        if ($level === 'info') {
+            echo '<ul class=meta>';
+            foreach ($r['roots'] as $x) echo '<li>data folder <code>', $h($x['label']), '</code> ', $x['files'], ' files, ', $x['size'], '</li>';
+            foreach ($r['sets'] as $x) echo '<li>layer set <code>', $h($x['label']), '</code> ', $x['entries'], ' layers</li>';
+            echo '</ul>';
+        }
+        if ($messages) {
+            echo '<ul class=messages>';
+            foreach ($messages as $m) echo '<li>', $h($m), '</li>';
+            echo '</ul>';
+        }
+        foreach ($level === 'info' ? $tables : $tables_with_rows as $t) {
+            list($title, $head, $rows, $note) = $t;
+            $label = '<h3>' . $h($title) . ' <span class=count>' . count($rows) . '</span>'
+                   . ($note ? ' <span class=note>— ' . $h($note) . '</span>' : '') . '</h3>';
+            if ($level === 'info') {
+                // collapsed: open it when you need the detail
+                echo '<details><summary>', $label, '</summary>', $rows ? html_table($h, $head, $rows) : '<p class=none>none</p>', '</details>';
+            } else {
+                echo $label, html_table($h, $head, $rows);
+            }
+        }
+        echo '</section>';
     }
-    echo SORT_SCRIPT;
+    echo '</main>', SORT_SCRIPT;
 }
+
+// Compact, dense, readable in light and dark. Severity is carried by text (chips,
+// headings) as well as colour.
+const STATUS_CSS = <<<'CSS'
+:root{color-scheme:light dark;--bg:#fff;--fg:#1b1f24;--muted:#667085;--line:#e4e7ec;--head:#f5f6f8;--hover:#f0f4ff;
+--link:#0a58ca;--visited:#6639ba;--code:#eef0f3;
+--err:#b42318;--err-bg:#fef3f2;--warn:#93500a;--warn-bg:#fffaeb;--ok:#067647;--ok-bg:#ecfdf3;--info:#475467;--info-bg:#f5f6f8}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e7e9ee;--muted:#98a0ad;--line:#2a2f39;--head:#171a21;--hover:#1b2130;
+--link:#8ab8ff;--visited:#cba6ff;--code:#1f2430;
+--err:#ff8f85;--err-bg:#2b1517;--warn:#ffc864;--warn-bg:#2a2111;--ok:#6ee0a0;--ok-bg:#10261a;--info:#aab3c0;--info-bg:#171a21}}
+*{box-sizing:border-box}
+body{margin:0;font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--fg);background:var(--bg)}
+a{color:var(--link);text-decoration:none}a:visited{color:var(--visited)}a:hover{text-decoration:underline}
+code,.mono{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+code{background:var(--code);padding:0 4px;border-radius:3px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 16px;border-bottom:1px solid var(--line);
+  border-top:3px solid var(--ok);position:sticky;top:0;background:var(--bg);z-index:2}
+header.error{border-top-color:var(--err)}header.warning{border-top-color:var(--warn)}
+h1{font-size:15px;margin:0;font-weight:650}
+.badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.badge{font-weight:600;font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid currentColor}
+.badge.error{color:var(--err);background:var(--err-bg)}.badge.warning{color:var(--warn);background:var(--warn-bg)}
+.badge.ok{color:var(--ok);background:var(--ok-bg)}.badge.zero{opacity:.45}
+.when{color:var(--muted);font-size:12px}
+main{padding:4px 16px 24px}
+section.level{margin:12px 0;padding:6px 0 4px 12px;border-left:3px solid var(--info)}
+section.error{border-left-color:var(--err)}section.warning{border-left-color:var(--warn)}
+h2{font-size:14px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.chip{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:4px;
+  color:var(--info);background:var(--info-bg)}
+.error .chip{color:var(--err);background:var(--err-bg)}.warning .chip{color:var(--warn);background:var(--warn-bg)}
+h2 .count{color:var(--muted);font-weight:500;font-size:13px}
+h3{display:inline;font-size:13px;margin:0;font-weight:600}
+h3 .count{color:var(--muted);font-weight:500}.note{color:var(--muted);font-weight:400;font-size:12px}
+section:not(.info) h3{display:block;margin:8px 0 2px}
+ul.messages,ul.meta{margin:2px 0 6px;padding-left:18px}ul.messages li{margin:2px 0}
+.error ul.messages li::marker{color:var(--err)}.warning ul.messages li::marker{color:var(--warn)}
+ul.meta{color:var(--muted);list-style:none;padding:0}ul.meta li{display:inline-block;margin-right:16px}
+details{margin:2px 0}summary{cursor:pointer;padding:2px 0}summary::marker{color:var(--muted)}
+.scroll{overflow-x:auto;margin:2px 0 10px;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:3px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:var(--hover)}
+th{background:var(--head);font-weight:600;color:var(--muted);white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--fg)}th[aria-sort=ascending]::after{content:' \25B2'}th[aria-sort=descending]::after{content:' \25BC'}
+td{overflow-wrap:anywhere}td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.error td.fix{color:var(--err)}
+.none{color:var(--muted);margin:2px 0 8px}
+CSS;
 
 // Click a column heading to sort its table; click again to reverse. Sizes sort by
 // their byte count (data-sort) and start largest first; text sorts naturally
@@ -426,11 +537,22 @@ JS;
 
 // ---------------------------------------------------------------- setup
 
-// Roots and layer sets from an app config.json.
+// Roots and layer sets from an app config.json, with config.local.json beside it
+// overriding it key by key, as the app does.
 function from_config($file, $docroot, &$roots, &$sets, &$notes) {
     $cfg = json_decode(@file_get_contents($file), true);
     if (!is_array($cfg)) return "can't read config $file";
     $base = dirname(realpath($file));
+    $local = "$base/config.local.json";
+    if (is_file($local)) {
+        $over = json_decode(file_get_contents($local), true);
+        if (is_array($over)) {
+            $cfg = array_merge($cfg, $over);
+            $notes[] = 'config.local.json overrides: ' . implode(', ', array_keys($over));
+        } else {
+            $notes[] = "config.local.json: not valid JSON, ignored (the app ignores it too)";
+        }
+    }
     foreach (isset($cfg['roots']) ? $cfg['roots'] : [] as $root) {
         $p = is_array($root) ? (isset($root['url']) ? $root['url'] : '') : $root;
         list($dir, $why) = resolve_config_path($p, $base, $docroot);
@@ -497,7 +619,7 @@ function main_cli($argv) {
         print_html($r, $problems, false);
         fwrite(STDERR, summary($r) . "\n");
     }
-    return ($r['missing'] || $r['ignored']) ? 1 : 0;
+    return counts($r)['error'] ? 1 : 0;
 }
 
 function main_web() {

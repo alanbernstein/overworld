@@ -68,8 +68,12 @@ where you live and ride.
 ## Checking data
 
 `https://<site>/overworld/status` compares the layer sets with the uploaded
-files: which file each layer uses, layers whose file is missing, files no layer
-uses, and entries the app ignores. Add `?problems` to see only those.
+files and lists what it finds by severity: **errors** (a layer won't appear:
+its file is missing, or the app ignores the entry; each with a fix), then
+**warnings** (likely mistakes, such as the same layer defined in two layer
+sets), then **information** (data folders, layer sets, and collapsed tables of
+matched files, unused files and tile layers). Like the app, it reads
+`config.local.json` over `config.json`.
 
 It lists every file, including ones in protected folders, so it refuses to run
 until its folder is behind a password: cPanel → Directory Privacy →

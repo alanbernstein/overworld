@@ -18,9 +18,9 @@ index:
 	@python3 tools/index-data.py
 
 # status.html: layer sets compared with the data files in this machine's roots
-#   make status ARGS=--problems      only the problems
+#   make status ARGS=--problems      leave out the informational tables
 #   make status ARGS="DIR ..."       these data folders instead of config.json's roots
-# exit status 1 from the script just means problems were found; 2 is a real error
+# exit status 1 from the script just means errors were found; 2 is a real error
 status:
 	@php tools/status.php $(ARGS) > status.html.tmp; s=$$?; \
 	if [ $$s -le 1 ]; then mv status.html.tmp status.html; echo "wrote status.html"; \
