@@ -26,15 +26,19 @@ Each machine has its own `config.json` (gitignored; start from `config.example.j
 
 ```json
 {
-  "roots": ["data/local/", "data/sync/", "data/samples/"],
-  "hide_unavailable": false
+  "roots": ["data/local/", "data/sync/", "data/samples/", "/overworld-data/"],
+  "hide_unavailable": false,
+  "carto_key": "",
+  "ors_key": "",
+  "ors_proxy": "api/route.php"
 }
 ```
 
-- `roots` are searched in order. A root is available when its `_files.json` listing is reachable, so a root that isn't on this machine is simply skipped. A root can also be a URL, e.g. a web server holding the same `<region>/<file>` layout.
+- `roots` are searched in order. A root is available when its `_files.json` listing is reachable, so a root that isn't on this machine is simply skipped; that's how the same template serves local machines (`data/...`) and the web host (`/overworld-data/`). A root can also be a URL, e.g. a web server holding the same `<region>/<file>` layout.
 - Layer sets (the layer config files) live with the data and load automatically: every `layers/*.json` in a root, e.g. `data/sync/layers/seattle.json`, or the samples' `data/samples/layers/example.json`. Like data files, a layer set in more than one root loads from the first. Keep one copy, in the synced root, so machines don't drift apart. Leave `data/samples/` out of `roots` to hide the example layers.
 - `layer_sets` (optional) lists extra layer set URLs to load from elsewhere.
 - Layers whose file isn't in any root are greyed out, or hidden with `hide_unavailable`.
+- `ors_key` / `ors_proxy`: routing (OpenRouteService). A non-empty `ors_key` is used directly from the browser (local use); with it blank, requests go through the server-side `ors_proxy`.
 - `carto_key` is your CARTO basemaps API key (free for non-commercial use: https://carto.com/basemaps/apikey). Without it the CARTO base layers show an "API KEY REQUIRED" placeholder.
 
 With no `config.json` the app uses `data/samples/` (so a fresh checkout shows the example layers), then looks in `data/` for anything else.

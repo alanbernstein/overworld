@@ -1,8 +1,0 @@
-{
-  "roots": [
-    "/overworld-data/"
-  ],
-  "hide_unavailable": true,
-  "carto_key": "",
-  "ors_proxy": "api/route.php"
-}

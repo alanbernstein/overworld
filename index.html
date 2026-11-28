@@ -797,9 +797,10 @@ const DEFAULT_BASE_LAYER = 'cyclosm';
 let activeBaseKey = DEFAULT_BASE_LAYER;
 
 // Routing goes through OpenRouteService (free key at https://openrouteservice.org).
-// config.json sets either "ors_proxy" (a server-side proxy holding the key, used when
-// hosted publicly; see deploy/api/route.php) or "ors_key" (sent from the browser, fine
-// for local use). The key is never committed.
+// config.json sets "ors_key" (sent from the browser, fine for local use) and/or
+// "ors_proxy" (a server-side proxy holding the key, for public hosting; see
+// deploy/api/route.php). A non-empty ors_key wins, so one config template serves
+// both: fill in the key locally, leave it blank on the server. Never commit the key.
 const ORS_DIRECT_URL = 'https://api.openrouteservice.org/v2/directions/';
 
 // Current user GPS position (kept in sync by the geolocation watcher below)
@@ -1798,11 +1799,11 @@ async function routeTo(destLat, destLng, profile = 'cycling-regular') {
   setStatus('Getting directions…');
   if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
 
-  const url = ors_proxy
-    ? `${ors_proxy}?profile=${encodeURIComponent(profile)}`
-    : `${ORS_DIRECT_URL}${profile}/geojson`;
+  const url = ors_key
+    ? `${ORS_DIRECT_URL}${profile}/geojson`
+    : `${ors_proxy}?profile=${encodeURIComponent(profile)}`;
   const headers = { 'Content-Type': 'application/json' };
-  if (!ors_proxy) headers['Authorization'] = ors_key;
+  if (ors_key) headers['Authorization'] = ors_key;
 
   try {
     const resp = await fetch(

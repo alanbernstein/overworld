@@ -5,10 +5,10 @@
 #   APP_DEST   where the app goes        (default ~/public_html/overworld)
 #   DATA_DEST  the shared data folder    (default ~/public_html/overworld-data)
 #
-# Files are copied, never deleted, so anything uploaded by hand stays put (the
-# one exception is RETIRED below). config.json is created from
-# deploy/config.example.json on the first deploy and never overwritten after, so
-# edit it on the server. The data folder only gets the listing script and its
+# Files are copied, never deleted, so anything uploaded by hand stays put; files
+# that should go are listed in to-delete.txt (see RETIRED below) for you to remove.
+# config.json is created from config.example.json on the first deploy and never
+# overwritten after, so edit it on the server. The data folder only gets the listing script and its
 # .htaccess; data files themselves are uploaded with the cPanel File Manager.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -16,23 +16,25 @@ cd "$(dirname "$0")/.."
 APP_DEST=${APP_DEST:-$HOME/public_html/overworld}
 DATA_DEST=${DATA_DEST:-$HOME/public_html/overworld-data}
 
-# Files earlier deploys installed that the app no longer uses: exactly those
-# files, then their folders if that leaves them empty, so anything else put
-# there by hand survives. Never anything in the data folder. Safe to drop later.
-RETIRED=(layers/example.json layers/index.json
-         data/samples/_files.json data/samples/austin/LFL-from-littlefreelibrary.org-map.geojson
-         data/samples/austin/aisd-schools-v12-202601.xml)
+# Files earlier deploys (or old setups) left on the server that are no longer
+# used. Nothing is deleted: whichever still exist are written to to-delete.txt
+# in the repo checkout, to remove by hand (File Manager). Safe to trim later.
+RETIRED=("$APP_DEST/layers/example.json" "$APP_DEST/layers/index.json"
+         "$APP_DEST/data/samples/_files.json"
+         "$APP_DEST/data/samples/austin/LFL-from-littlefreelibrary.org-map.geojson"
+         "$APP_DEST/data/samples/austin/aisd-schools-v12-202601.xml"
+         "$APP_DEST/config.local.json"     # no longer read: move its keys into config.json first
+         "$DATA_DEST/layers/example.json") # a copy of the samples' layer set
 
 mkdir -p "$APP_DEST/api" "$APP_DEST/status" "$DATA_DEST"
 
-for p in "${RETIRED[@]}"; do
-  if [ -f "$APP_DEST/$p" ]; then rm -f "$APP_DEST/$p"; echo "removed retired $APP_DEST/$p"; fi
-done
-for d in layers data/samples/austin data/samples data; do
-  rmdir "$APP_DEST/$d" 2>/dev/null || true
-done
-if [ -e "$APP_DEST/config.local.json" ]; then
-  echo "note: $APP_DEST/config.local.json is no longer read; move its keys into config.json there and delete it"
+found=()
+for p in "${RETIRED[@]}"; do [ -e "$p" ] && found+=("$p"); done
+if [ ${#found[@]} -gt 0 ]; then
+  printf '%s\n' "${found[@]}" > to-delete.txt
+  echo "${#found[@]} unused file(s) on the server; see $(pwd)/to-delete.txt"
+else
+  rm -f to-delete.txt
 fi
 
 # app shell
@@ -42,8 +44,8 @@ cp deploy/api/route.php "$APP_DEST/api/"
 
 # per-server settings: created once, then edited on the server
 if [ ! -e "$APP_DEST/config.json" ]; then
-  cp deploy/config.example.json "$APP_DEST/config.json"
-  echo "created $APP_DEST/config.json from deploy/config.example.json; edit it there"
+  cp config.example.json "$APP_DEST/config.json"
+  echo "created $APP_DEST/config.json from config.example.json; edit it there"
 fi
 
 # shared data folder: dynamic _files.json

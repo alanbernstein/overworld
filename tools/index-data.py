@@ -30,6 +30,8 @@ def configured_roots():
             if r.get('indexed') is False:
                 continue                       # unindexed by definition
             r = r['url']
+        if r.startswith('/'):
+            continue                           # a site path: the web host lists it (_files.php)
         if '://' not in r:                     # remote roots are indexed where they're served
             out.append(os.path.join(APP_DIR, r))
     return out

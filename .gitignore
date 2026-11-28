@@ -3,6 +3,9 @@
 # per-machine: which data roots and layer sets this machine uses
 /config.json
 
+# written by deploy/deploy.sh: unused files on the server to remove by hand
+/to-delete.txt
+
 # make status output
 /status.html
 /status.html.tmp

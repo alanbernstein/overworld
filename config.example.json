@@ -2,9 +2,11 @@
   "roots": [
     "data/local/",
     "data/sync/",
-    "data/samples/"
+    "data/samples/",
+    "/overworld-data/"
   ],
   "hide_unavailable": false,
   "carto_key": "",
-  "ors_key": ""
+  "ors_key": "",
+  "ors_proxy": "api/route.php"
 }

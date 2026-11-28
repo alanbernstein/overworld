@@ -9,7 +9,7 @@ two live in separate folders, so neither ever overwrites the other.
 ~/secrets/ors-key.txt       OpenRouteService key, outside the website
 ~/public_html/
   overworld/                the app: written by deploy.sh on every deploy
-    config.json               this server's settings: made from deploy/config.example.json
+    config.json               this server's settings: made from config.example.json
                               on the first deploy, then edited here (deploys never touch it)
     api/route.php             routing proxy, holds the key server-side
     status/index.php          status page: layer sets vs. data (password-protected)
@@ -35,15 +35,19 @@ two live in separate folders, so neither ever overwrites the other.
 2. cPanel → Git Version Control → Manage → Pull or Deploy:
    **Update from Remote**, then **Deploy HEAD Commit**.
 
-That runs `.cpanel.yml`, which runs `deploy/deploy.sh`. It only copies files, so
-anything removed from the repo has to be deleted on the server by hand (apart
-from the few retired files listed in `deploy.sh`, which it removes itself).
+That runs `.cpanel.yml`, which runs `deploy/deploy.sh`. It only copies files, never
+deletes them. Files it knows are no longer used (the `RETIRED` list in `deploy.sh`)
+are written, when present, to `~/repos/overworld/to-delete.txt`; open it in File
+Manager after a deploy and delete what it lists. No file means nothing to do.
 
 `overworld/config.json` is the server's own settings file. The first deploy
-creates it from `deploy/config.example.json`; after that, deploys never touch
-it, so edit it on the server (File Manager → Edit), e.g. to fill in `carto_key`.
-When an update adds a setting, the app's built-in default applies until you add
-it; compare with `deploy/config.example.json` now and then. It's served publicly,
+creates it from `config.example.json` (the same template as for local use: data
+folders that aren't there, like `data/sync/`, are skipped, and with `ors_key`
+blank routing goes through `ors_proxy`). After that, deploys never touch it, so
+edit it on the server (File Manager → Edit): fill in `carto_key`, set
+`hide_unavailable` to `true`, and optionally drop the local-only roots. When an
+update adds a setting, the app's built-in default applies until you add it;
+compare with `config.example.json` now and then. It's served publicly,
 so keep secrets out of it (the routing key lives in `~/secrets`).
 
 After changing app files, change `APP_CACHE` in `sw.js` (any new name) so installed copies update.
