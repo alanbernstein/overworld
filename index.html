@@ -678,6 +678,7 @@ function parseLayersConfig(rawLayers) {
       type,
       source_url: entry.source_url || null,
       style_by: entry.style_by || null,
+      label_by: entry.label_by || null,
       max_zoom: entry.max_zoom || null,
       attribution: entry.attribution || null,
       heat: entry.heat || null,
@@ -855,7 +856,7 @@ const NAME_KEYS = [
   'UNIT_NAME', 'ParkName', 'PARK_NAME',
   'school_name', 'mapLabel',
   'L_HOOD', 'S_HOOD',
-  'JURISDICT_NM', 'JURISDICT_LABEL_NM',
+  'JURISDICT_NM', 'JURISDICT_LABEL_NM', 'CityName',
   'planning_area_name', 'display_name', 'watershed_full_name',
   'location_name', 'district_name', 'jurisdiction_label',
   'TRAIL_SYST', 'ASSET_NAME', 'UNITDESC',
@@ -863,9 +864,31 @@ const NAME_KEYS = [
   'label', 'LABEL', 'title', 'TITLE',
 ];
 
-// Get feature name from properties
-function getFeatureName(props) {
+// Pick the property to name features by: the layer's label_by if set,
+// otherwise the NAME_KEYS entry with the most distinct values in this layer
+// (ties go to the earlier key). E.g. sub-neighbourhoods have L_HOOD (20 values)
+// and S_HOOD (94), so S_HOOD wins there.
+function pickNameKey(features, override) {
+  if (override) return override;
+  let best = null, bestCount = 0;
+  for (const key of NAME_KEYS) {
+    const vals = new Set();
+    for (const f of features || []) {
+      const v = f.properties?.[key];
+      if (v != null && String(v).trim()) vals.add(String(v).trim());
+    }
+    if (vals.size > bestCount) { best = key; bestCount = vals.size; }
+  }
+  return best;
+}
+
+// Get feature name from properties (nameKey: the layer's chosen property, if any)
+function getFeatureName(props, nameKey = null) {
   if (!props) return '';
+  if (nameKey) {
+    const v = props[nameKey];
+    if (v != null && String(v).trim()) return String(v).trim();
+  }
   for (const key of NAME_KEYS) {
     const v = props[key];
     if (v && String(v).trim()) return String(v).trim();
@@ -882,9 +905,9 @@ function getFeatureName(props) {
 }
 
 // Get short summary for the status bar (name + 1-2 secondary details)
-function getFeatureInfo(props) {
+function getFeatureInfo(props, nameKey = null) {
   if (!props) return '';
-  const name = getFeatureName(props);
+  const name = getFeatureName(props, nameKey);
   const parts = name ? [name] : [];
   if (props.County1) parts.push(`County: ${props.County1}`);
   if (props.UNIT_TYPE) parts.push(props.UNIT_TYPE);
@@ -904,9 +927,9 @@ const POPUP_SKIP = new Set([
 ]);
 
 // Build HTML table of all meaningful properties for a popup
-function buildPopupHTML(props) {
+function buildPopupHTML(props, nameKey = null) {
   if (!props) return '<em>No properties</em>';
-  const name = getFeatureName(props);
+  const name = getFeatureName(props, nameKey);
   const rows = [];
   for (const [k, v] of Object.entries(props)) {
     if (POPUP_SKIP.has(k) || k.startsWith(':')) continue;
@@ -962,7 +985,7 @@ function geometrySize(geom) {
 }
 
 // Create labels layer for a GeoJSON layer
-function createLabelsLayer(data) {
+function createLabelsLayer(data, nameKey = null) {
   const labels = L.layerGroup();
 
   if (!data.features) return labels;
@@ -970,7 +993,7 @@ function createLabelsLayer(data) {
   const candidates = [];
 
   data.features.forEach(feature => {
-    const name = getFeatureName(feature.properties);
+    const name = getFeatureName(feature.properties, nameKey);
     if (!name) return;
 
     const geom = feature.geometry;
@@ -1091,16 +1114,17 @@ async function loadGeoJSON(config) {
   const response = await fetch(config.file);
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${config.file}`);
   const data = await response.json();
+  const nameKey = pickNameKey(data.features, config.label_by);
 
   const layer = L.geoJSON(data, {
     style: () => ({ weight: 2, fillOpacity: 0.25 }),
     pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 5 }),
     onEachFeature: (feature, featureLayer) => {
-      featureLayer.bindPopup(() => buildPopupHTML(feature.properties), { maxWidth: 340 });
+      featureLayer.bindPopup(() => buildPopupHTML(feature.properties, nameKey), { maxWidth: 340 });
       featureLayer.on({
         mouseover: (e) => {
           const l = e.target;
-          const info = getFeatureInfo(feature.properties);
+          const info = getFeatureInfo(feature.properties, nameKey);
           setStatus(info || 'Click for details', true);
           if (l.setStyle) {
             l.setStyle({ weight: 4, fillOpacity: 0.45 });
@@ -1127,7 +1151,7 @@ async function loadGeoJSON(config) {
     }
   });
 
-  const labels = createLabelsLayer(data);
+  const labels = createLabelsLayer(data, nameKey);
 
   // Build value→color palette if style_by is configured
   let valuePalette = null;
