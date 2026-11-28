@@ -1,4 +1,4 @@
-const APP_CACHE = 'overworld-app-0.15';
+const APP_CACHE = 'overworld-app-0.16';
 const DATA_CACHE = 'overworld-data-v1';
 
 // App shell + CDN libraries to pre-cache on install

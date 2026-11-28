@@ -1920,59 +1920,55 @@ function initPanelSections() {
   }
 }
 
-// Return the nearest Link Rail station feature to the given coordinates
+// --- Link mode: bike from the Link light rail station nearest the destination ---
+const LINK_STATIONS_FILE = 'seattle/seattle-link-rail-stations.geojson';
+let linkStations = null;     // cached station features
+
+function distMeters(lat1, lng1, lat2, lng2) {
+  const kx = 111320 * Math.cos((lat1 + lat2) / 2 * Math.PI / 180);
+  return Math.hypot((lng2 - lng1) * kx, (lat2 - lat1) * 110574);
+}
+
 async function nearestLinkRailStation(lat, lng) {
-  const resp = await fetch('data/seattle/seattle-link-rail-stations.geojson');
-  const geojson = await resp.json();
+  if (!linkStations) {
+    const url = resolveDataFile(LINK_STATIONS_FILE);
+    const gj = url && await fetchJSON(url);
+    if (!gj) throw new Error(`${LINK_STATIONS_FILE} not available`);
+    linkStations = gj.features.filter(f => f.geometry?.type === 'Point');
+  }
   let nearest = null, minDist = Infinity;
-  for (const feature of geojson.features) {
-    const [fLng, fLat] = feature.geometry.coordinates;
-    const d = Math.hypot(fLat - lat, fLng - lng);
-    if (d < minDist) { minDist = d; nearest = feature; }
+  for (const f of linkStations) {
+    const [fLng, fLat] = f.geometry.coordinates;
+    const d = distMeters(lat, lng, fLat, fLng);
+    if (d < minDist) { minDist = d; nearest = f; }
   }
   return nearest;
 }
 
-// Hybrid mode: bike route from nearest Link Rail station to destination
-async function routeHybrid(destLat, destLng) {
-  if (!ORS_API_KEY) { setStatus('ORS_API_KEY not configured'); return; }
-  setStatus('Finding nearest Link Rail station…');
+async function routeLink(destLat, destLng) {
+  setStatus('Finding nearest Link station…');
   if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
-
   try {
     const station = await nearestLinkRailStation(destLat, destLng);
-    const [stationLng, stationLat] = station.geometry.coordinates;
-    const stationName = station.properties.name;
+    const [sLng, sLat] = station.geometry.coordinates;
+    const name = station.properties.name || 'Link station';
+    setStatus(`Routing from ${name}…`);
+    const geojson = await orsRequest('directions', 'cycling-regular',
+      { coordinates: [[sLng, sLat], [destLng, destLat]] });
 
-    setStatus(`Routing from ${stationName}…`);
-    const resp = await fetch(
-      'https://api.openrouteservice.org/v2/directions/cycling-regular/geojson',
-      {
-        method: 'POST',
-        headers: { 'Authorization': ORS_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coordinates: [[stationLng, stationLat], [destLng, destLat]] })
-      }
-    );
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const geojson = await resp.json();
-
-    const routeLine = L.geoJSON(geojson, { style: { color: ROUTE_COLOR, weight: 4, opacity: 0.8 } });
-    const stationMarker = L.circleMarker([stationLat, stationLng], {
+    const line = L.geoJSON(geojson, { style: { color: ROUTE_COLOR, weight: 4, opacity: 0.8 } });
+    const marker = L.circleMarker([sLat, sLng], {
       radius: 7, color: ROUTE_COLOR, fillColor: '#fff', fillOpacity: 1, weight: 2
-    }).bindTooltip(stationName, { permanent: false });
-    routeLayer = L.layerGroup([routeLine, stationMarker]).addTo(map);
-    map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+    }).bindTooltip(name);
+    routeLayer = L.layerGroup([line, marker]).addTo(map);
+    map.fitBounds(line.getBounds(), { padding: [20, 20] });
 
     const summary = geojson.features[0]?.properties?.summary;
-    if (summary) {
-      const km = (summary.distance / 1000).toFixed(1);
-      const mins = Math.round(summary.duration / 60);
-      setStatus(`${stationName} → dest: ${km} km · ${mins} min by bike`);
-    } else {
-      setStatus(`Bike from ${stationName}`);
-    }
+    setStatus(summary
+      ? `${name} → here: ${formatDistance(summary.distance)} · ${Math.round(summary.duration / 60)} min by bike`
+      : `Bike from ${name}`);
   } catch (err) {
-    setStatus(`Hybrid routing failed: ${err.message}`);
+    setStatus(`Link routing failed: ${err.message}`);
   }
 }
 
@@ -2121,17 +2117,20 @@ function setDestination(lat, lng, label) {
     modeBtns.push(btn);
     dirRow.appendChild(btn);
   }
-  const hybridBtn = document.createElement('button');
-  hybridBtn.textContent = 'link*';
-  hybridBtn.title = 'Bike route from nearest Link Rail station';
-  hybridBtn.style.cssText = btnStyle;
-  hybridBtn.onclick = () => {
-    modeBtns.forEach(b => b.style.outline = '');
-    hybridBtn.style.outline = `2px solid ${ROUTE_COLOR}`;
-    routeHybrid(lat, lng);
-  };
-  modeBtns.push(hybridBtn);
-  dirRow.appendChild(hybridBtn);
+  if (resolveDataFile(LINK_STATIONS_FILE)) {
+    const linkBtn = document.createElement('button');
+    linkBtn.textContent = 'link*';
+    linkBtn.title = 'Bike route from the Link light rail station nearest here';
+    linkBtn.style.cssText = btnStyle;
+    linkBtn.onclick = () => {
+      modeBtns.forEach(b => b.style.outline = '');
+      linkBtn.style.outline = `2px solid ${ROUTE_COLOR}`;
+      setTravelMode('cycling-regular');
+      routeLink(lat, lng);
+    };
+    modeBtns.push(linkBtn);
+    dirRow.appendChild(linkBtn);
+  }
   popupEl.appendChild(nameEl);
   popupEl.appendChild(dirRow);
   popupEl.appendChild(radiusRow(() => L.latLng(lat, lng), 'pin'));
