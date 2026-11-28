@@ -1,4 +1,4 @@
-const APP_CACHE = 'overworld-app-0.14';
+const APP_CACHE = 'overworld-app-0.15';
 const DATA_CACHE = 'overworld-data-v1';
 
 // App shell + CDN libraries to pre-cache on install
@@ -29,7 +29,7 @@ const NETWORK_ONLY_PREFIXES = [
   'https://b.basemaps.cartocdn.com',
   'https://c.basemaps.cartocdn.com',
   'https://nominatim.openstreetmap.org',
-  'https://api.openrouteservice.org',
+  'https://api.heigit.org',
   'https://geo.dot.gov',
 ];
 

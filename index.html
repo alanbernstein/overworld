@@ -461,6 +461,8 @@
       border-radius: 4px;
     }
     .popup-row button.radius-btn { background: #7c3aed; }
+    .popup-row button.reach-btn { background: #0891b2; }
+    .reach-label { color: #0e7490; }
     .popup-row button.on { outline: 2px solid #ea580c; }
 
     .leaflet-popup-content { margin: 10px 14px; }
@@ -839,12 +841,13 @@ const BASE_LAYER_DEFS = {
 const DEFAULT_BASE_LAYER = 'cyclosm';
 let activeBaseKey = DEFAULT_BASE_LAYER;
 
-// Routing goes through OpenRouteService (free key at https://openrouteservice.org).
+// Routing goes through OpenRouteService (free key at https://openrouteservice.org), at
+// api.heigit.org/openrouteservice/ since api.openrouteservice.org was retired (Nov 2026).
 // config.json sets "ors_key" (sent from the browser, fine for local use) and/or
 // "ors_proxy" (a server-side proxy holding the key, for public hosting; see
 // deploy/api/route.php). A non-empty ors_key wins, so one config template serves
 // both: fill in the key locally, leave it blank on the server. Never commit the key.
-const ORS_DIRECT_URL = 'https://api.openrouteservice.org/v2/directions/';
+const ORS_DIRECT_URL = 'https://api.heigit.org/openrouteservice/v2/directions/';
 
 // Current user GPS position (kept in sync by the geolocation watcher below)
 let userLatLng = null;
@@ -911,29 +914,37 @@ function moveRadius(latlng) {
   radiusLayer._label.setLatLng([c.lat + dLat, c.lng]);
 }
 
-// "Radius: ¼ ½ 1 2 mi" buttons for a popup; getLatLng is called on each click so a
-// ring around the user starts at their current position. Clicking the lit button clears.
-function radiusRow(getLatLng, anchor) {
+// A popup row of toggle buttons: "<label> [a] [b] [c] <unit>". Clicking a button
+// lights it and calls onPick(value); clicking the lit one calls onClear().
+// label may be an element (to update it later).
+function toggleRow(label, choices, unit, cls, onPick, onClear) {
   const row = document.createElement('div');
   row.className = 'popup-row';
-  row.appendChild(Object.assign(document.createElement('span'), { textContent: 'Radius:' }));
+  row.append(typeof label === 'string' ? Object.assign(document.createElement('span'), { textContent: label }) : label);
   const btns = [];
-  for (const [text, miles] of RADIUS_CHOICES) {
+  for (const [text, value] of choices) {
     const btn = document.createElement('button');
-    btn.className = 'radius-btn';
+    if (cls) btn.className = cls;
     btn.textContent = text;
     btn.onclick = () => {
       const on = btn.classList.contains('on');
       btns.forEach(b => b.classList.remove('on'));
-      if (on) { clearRadius(); return; }
+      if (on) { onClear(); return; }
       btn.classList.add('on');
-      drawRadius(getLatLng(), miles, anchor);
+      onPick(value);
     };
     btns.push(btn);
     row.appendChild(btn);
   }
-  row.appendChild(Object.assign(document.createElement('span'), { textContent: 'mi' }));
+  row.appendChild(Object.assign(document.createElement('span'), { textContent: unit }));
   return row;
+}
+
+// "Radius: ¼ ½ 1 2 mi"; getLatLng is called on each click so a ring around the user
+// starts at their current position.
+function radiusRow(getLatLng, anchor) {
+  return toggleRow('Radius:', RADIUS_CHOICES, 'mi', 'radius-btn',
+    miles => drawRadius(getLatLng(), miles, anchor), clearRadius);
 }
 
 // Build label→layer map for Leaflet's layers control
@@ -1910,38 +1921,102 @@ function initPanelSections() {
 }
 
 // Route from current location to dest using the given ORS profile
+// Travel mode for directions and reach areas: the last one picked in a popup
+const TRAVEL_MODES = [['bike', 'cycling-regular'], ['walk', 'foot-walking'], ['drive', 'driving-car']];
+let travelMode = 'cycling-regular';
+const modeName = profile => (TRAVEL_MODES.find(([, p]) => p === profile) || [profile])[0];
+function setTravelMode(profile) {
+  travelMode = profile;
+  document.querySelectorAll('.reach-mode').forEach(el => { el.textContent = `Reach (${modeName(profile)}):`; });
+}
+
+// POST to OpenRouteService directly (ors_key, local use) or through the server proxy
+// (ors_proxy). service: 'directions' or 'isochrones'. Returns geojson, or throws.
+async function orsRequest(service, profile, body) {
+  const { ors_proxy, ors_key } = APP_CONFIG;
+  if (!ors_proxy && !ors_key) throw new Error('routing not configured (ors_proxy or ors_key in config.json)');
+  const url = ors_key
+    ? (service === 'directions' ? `${ORS_DIRECT_URL}${profile}/geojson` : `${ORS_ISOCHRONE_URL}${profile}`)
+    : `${ors_proxy}?profile=${encodeURIComponent(profile)}${service === 'directions' ? '' : '&service=' + service}`;
+  const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json, application/geo+json' };
+  if (ors_key) headers['Authorization'] = ors_key;
+  const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    let msg = `HTTP ${resp.status}`;
+    try { const j = await resp.json(); msg = j.error?.message || j.error || msg; } catch {}
+    throw new Error(msg);
+  }
+  return resp.json();
+}
+
+// --- Reach areas (isochrones): where you can get to in 10 / 20 / 30 minutes ---
+const ORS_ISOCHRONE_URL = 'https://api.heigit.org/openrouteservice/v2/isochrones/';
+const REACH_COLOR = '#0891b2';
+const REACH_CHOICES = [['10', 10], ['20', 20], ['30', 30]];   // minutes
+let reachLayer = null;
+let reachAnchor = null;      // 'user' when drawn from the location dot
+let reachRequest = 0;        // drops responses to superseded clicks
+
+function clearReach() {
+  reachRequest++;
+  if (reachLayer) { map.removeLayer(reachLayer); reachLayer = null; }
+  reachAnchor = null;
+}
+
+// Nested areas for every 10-minute step up to `minutes`, darker toward the centre
+async function drawReach(latlng, minutes, anchor) {
+  clearReach();
+  const req = reachRequest;
+  const profile = travelMode;
+  const steps = REACH_CHOICES.map(([, m]) => m).filter(m => m <= minutes);
+  setStatus(`Finding where you can get within ${minutes} min by ${modeName(profile)}…`);
+  try {
+    const gj = await orsRequest('isochrones', profile,
+      { locations: [[latlng.lng, latlng.lat]], range: steps.map(m => m * 60) });
+    if (req !== reachRequest) return;    // cleared or replaced meanwhile
+    const feats = (gj.features || []).sort((a, b) => b.properties.value - a.properties.value);
+    const group = L.layerGroup();
+    for (const f of feats) {
+      const mins = Math.round(f.properties.value / 60);
+      const poly = L.geoJSON(f, { interactive: false, style: {
+        color: REACH_COLOR, weight: mins === minutes ? 2 : 1, opacity: 0.8,
+        fillColor: REACH_COLOR, fillOpacity: 0.12,
+      } });
+      group.addLayer(poly);
+      // label at the area's northernmost point
+      let top = null;
+      poly.eachLayer(l => l.getLatLngs().flat(3).forEach(p => { if (!top || p.lat > top.lat) top = p; }));
+      if (top) group.addLayer(mapLabel(top, `${mins} min`, 'radius-label reach-label', 'above'));
+    }
+    reachLayer = group.addTo(map);
+    reachAnchor = anchor;
+    const bounds = L.featureGroup(group.getLayers().filter(l => l instanceof L.GeoJSON)).getBounds();
+    if (bounds.isValid() && !map.getBounds().contains(bounds)) map.fitBounds(bounds, { padding: [20, 20] });
+    setStatus(`Shaded: reachable within ${steps.join(' / ')} min by ${modeName(profile)}`);
+  } catch (err) {
+    if (req === reachRequest) setStatus(`Reach areas failed: ${err.message}`);
+  }
+}
+
+// "Reach (bike): 10 20 30 min", using the current travel mode
+function reachRow(getLatLng, anchor) {
+  const label = Object.assign(document.createElement('span'),
+    { className: 'reach-mode', textContent: `Reach (${modeName(travelMode)}):` });
+  return toggleRow(label, REACH_CHOICES, 'min', 'reach-btn',
+    minutes => drawReach(getLatLng(), minutes, anchor), clearReach);
+}
+
 async function routeTo(destLat, destLng, profile = 'cycling-regular') {
   if (!userLatLng) {
     setStatus('Enable location sharing to get directions');
     return;
   }
-  const { ors_proxy, ors_key } = APP_CONFIG;
-  if (!ors_proxy && !ors_key) {
-    setStatus('Routing not configured (ors_proxy or ors_key in config.json)');
-    return;
-  }
   setStatus('Getting directions…');
   if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
 
-  const url = ors_key
-    ? `${ORS_DIRECT_URL}${profile}/geojson`
-    : `${ors_proxy}?profile=${encodeURIComponent(profile)}`;
-  const headers = { 'Content-Type': 'application/json' };
-  if (ors_key) headers['Authorization'] = ors_key;
-
   try {
-    const resp = await fetch(
-      url,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          coordinates: [[userLatLng.lng, userLatLng.lat], [destLng, destLat]]
-        })
-      }
-    );
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const geojson = await resp.json();
+    const geojson = await orsRequest('directions', profile,
+      { coordinates: [[userLatLng.lng, userLatLng.lat], [destLng, destLat]] });
 
     routeLayer = L.geoJSON(geojson, {
       style: { color: ROUTE_COLOR, weight: 4, opacity: 0.8 }
@@ -1950,9 +2025,8 @@ async function routeTo(destLat, destLng, profile = 'cycling-regular') {
 
     const summary = geojson.features[0]?.properties?.summary;
     if (summary) {
-      const km = (summary.distance / 1000).toFixed(1);
       const mins = Math.round(summary.duration / 60);
-      setStatus(`${km} km · ${mins} min by bike`);
+      setStatus(`${formatDistance(summary.distance)} · ${mins} min by ${modeName(profile)}`);
     } else {
       setStatus('Route found');
     }
@@ -1966,6 +2040,7 @@ function setDestination(lat, lng, label) {
   if (searchMarker) map.removeLayer(searchMarker);
   if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
   if (radiusAnchor !== 'user') clearRadius();
+  if (reachAnchor !== 'user') clearReach();
 
   const popupEl = document.createElement('div');
   popupEl.style.cssText = 'font-size:11px;max-width:190px';
@@ -1980,17 +2055,14 @@ function setDestination(lat, lng, label) {
   const btnStyle = 'font-size:11px;padding:2px 7px;cursor:pointer;'
     + 'font-family:inherit;background:#2563eb;color:white;border:none;border-radius:4px';
   const modeBtns = [];
-  for (const [label, profile] of [
-    ['bike',  'cycling-regular'],
-    ['walk',  'foot-walking'],
-    ['drive', 'driving-car'],
-  ]) {
+  for (const [label, profile] of TRAVEL_MODES) {
     const btn = document.createElement('button');
     btn.textContent = label;
     btn.style.cssText = btnStyle;
     btn.onclick = () => {
       modeBtns.forEach(b => b.style.outline = '');
       btn.style.outline = `2px solid ${ROUTE_COLOR}`;
+      setTravelMode(profile);
       routeTo(lat, lng, profile);
     };
     modeBtns.push(btn);
@@ -1999,6 +2071,7 @@ function setDestination(lat, lng, label) {
   popupEl.appendChild(nameEl);
   popupEl.appendChild(dirRow);
   popupEl.appendChild(radiusRow(() => L.latLng(lat, lng), 'pin'));
+  popupEl.appendChild(reachRow(() => L.latLng(lat, lng), 'pin'));
 
   searchMarker = L.marker([lat, lng]).addTo(map)
     .bindPopup(popupEl).openPopup();
@@ -2277,6 +2350,7 @@ if ('serviceWorker' in navigator) {
       popupEl.style.cssText = 'font-size:11px;max-width:190px';
       popupEl.appendChild(Object.assign(document.createElement('div'), { textContent: 'Your location' }));
       popupEl.appendChild(radiusRow(() => locationMarker.getLatLng(), 'user'));
+      popupEl.appendChild(reachRow(() => locationMarker.getLatLng(), 'user'));
       locationMarker.bindPopup(popupEl);
 
       accuracyCircle = L.circle([lat, lng], {
